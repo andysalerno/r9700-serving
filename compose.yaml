@@ -13,6 +13,8 @@ services:
       # - "485" # render: /dev/kfd and /dev/dri/renderD*
       - "video"
       - "render"
+    cap_add:
+      - SYS_PTRACE
     security_opt:
       - label=disable
     ipc: host
