@@ -1,6 +1,7 @@
 services:
   vllm-qwen36-r9700:
-    image: docker.io/vllm/vllm-openai-rocm:v0.20.2
+    # image: docker.io/vllm/vllm-openai-rocm:v0.20.2
+    image: docker.io/vllm/vllm-openai-rocm:nightly
     container_name: vllm-qwen36-r9700
     devices:
       - /dev/kfd:/dev/kfd
@@ -34,8 +35,8 @@ services:
       NCCL_PROTO: "Simple"
       NCCL_P2P_DISABLE: "1"
       NCCL_SHM_DISABLE: "0"
-      # VLLM_ROCM_USE_AITER: "1"
-      # FLASH_ATTENTION_TRITON_AMD_ENABLE: "TRUE"
+      VLLM_ROCM_USE_AITER: "1"
+      FLASH_ATTENTION_TRITON_AMD_ENABLE: "TRUE"
       TRITON_CACHE_DIR: "/root/.cache/triton"
       TORCHINDUCTOR_CACHE_DIR: "/root/.cache/torch/inductor"
       # Qwen/Qwen3.6-35B-A3B-FP8
