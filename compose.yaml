@@ -6,7 +6,11 @@ services:
       - /dev/kfd:/dev/kfd
       - /dev/dri:/dev/dri
     group_add:
-      - keep-groups
+      # Host ROCm device groups; Docker Compose via Podman treats keep-groups
+      # as a literal image group, so use numeric GIDs for portability here.
+      # - keep-groups
+      - "482" # video: /dev/dri/card*
+      - "485" # render: /dev/kfd and /dev/dri/renderD*
     security_opt:
       - label=disable
     ipc: host
