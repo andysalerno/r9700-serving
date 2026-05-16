@@ -8,7 +8,7 @@ services:
       - /dev/kfd:/dev/kfd
       - /dev/dri:/dev/dri
     group_add:
-      - keep-groups
+      - "video"
     security_opt:
       - label=disable
     ipc: host
