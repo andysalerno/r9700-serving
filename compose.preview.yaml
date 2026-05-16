@@ -13,7 +13,7 @@ services:
       # - "482" # video: /dev/dri/card*
       # - "485" # render: /dev/kfd and /dev/dri/renderD*
       - "video"
-      - "render"
+      # - "render"
     cap_add:
       - SYS_PTRACE
     security_opt:
@@ -28,6 +28,7 @@ services:
       - ${HOME}/.cache/torch:/root/.cache/torch:Z
       - ./chat-templates/:/app/chat-templates:Z
 
+    entrypoint: ["vllm", "serve"]
     environment:
       # https://rocm.docs.amd.com/en/latest/how-to/rocm-for-ai/inference-optimization/vllm-optimization.html
       HIP_VISIBLE_DEVICES: "0,1"
