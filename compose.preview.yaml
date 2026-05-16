@@ -61,4 +61,3 @@ services:
       --gpu-memory-utilization 0.93
       --host 0.0.0.0
       --port 8000
-      --speculative-config '{"method": "ngram", "num_speculative_tokens": 4, "prompt_lookup_min": 2, "prompt_lookup_max": 5}'
