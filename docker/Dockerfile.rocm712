@@ -11,7 +11,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 # build with:
 #   --build-arg ROCM_META_PACKAGE=amdrocm-core-dev7.12-gfx120x
 # ARG ROCM_META_PACKAGE=amdrocm7.12-gfx120x
-ARG ROCM_META_PACKAGE=amdrocm-core-sdk-gfx120x
+ARG ROCM_META_PACKAGE=amdrocm-core-sdk7.12-gfx120x
 
 # Minimal packages needed to register AMD's apt repo and install ROCm.
 # AMD's Docker-container prerequisite section calls out missing essentials such
@@ -21,6 +21,7 @@ RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
         ca-certificates \
+        build-essential \
         gnupg \
         wget \
         sudo \
