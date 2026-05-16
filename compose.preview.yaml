@@ -1,6 +1,6 @@
 services:
   vllm-qwen36-r9700:
-    image: docker.io/vllm/vllm-openai-rocm:v0.21.0
+    image: docker.io/rocm/vllm:rocm7.13.0_gfx120X-all_ubuntu24.04_py3.13_pytorch_2.10.0_vllm_0.19.1
     # image: docker.io/vllm/vllm-openai-rocm:nightly
     container_name: vllm-qwen36-r9700
     devices:
