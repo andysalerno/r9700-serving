@@ -1,1 +1,61 @@
-# fill me in
+services:
+  vllm-qwen36-r9700:
+    image: ${IMAGE_NAME:-vllm-r9700-aiter:rocm713-current}
+    container_name: vllm-qwen36-r9700
+    stdin_open: true
+    tty: true
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - keep-groups
+    security_opt:
+      - label=disable
+    ipc: host
+    network_mode: host
+    volumes:
+      - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
+      - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
+      - ${HOME}/.cache/triton:/root/.cache/triton:Z
+      - ${HOME}/.cache/torch:/root/.cache/torch:Z
+      - ./chat-templates:/app/chat-templates:Z
+    environment:
+      HIP_VISIBLE_DEVICES: "0,1"
+      ROCR_VISIBLE_DEVICES: "0,1"
+      CUDA_VISIBLE_DEVICES: "0,1"
+      NCCL_SOCKET_IFNAME: lo
+      NCCL_PROTO: Simple
+      NCCL_P2P_DISABLE: "1"
+      NCCL_SHM_DISABLE: "0"
+      PYTORCH_ROCM_ARCH: gfx1201
+      GPU_ARCHS: gfx1201
+      HIP_FORCE_DEV_KERNARG: "1"
+      TORCH_BLAS_PREFER_HIPBLASLT: "1"
+      ROCBLAS_USE_HIPBLASLT: "1"
+      HSA_NO_SCRATCH_RECLAIM: "1"
+      RAY_EXPERIMENTAL_NOSET_ROCR_VISIBLE_DEVICES: "1"
+      VLLM_ROCM_USE_AITER: "1"
+      VLLM_ROCM_USE_AITER_MHA: "0"
+      VLLM_USE_AITER_UNIFIED_ATTENTION: "1"
+      VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION: "1"
+      VLLM_V1_USE_PREFILL_DECODE_ATTENTION: "0"
+      VLLM_LOGGING_LEVEL: DEBUG
+      TRITON_CACHE_DIR: /root/.cache/triton
+      TORCHINDUCTOR_CACHE_DIR: /root/.cache/torch/inductor
+    command:
+      - --model
+      - ${MODEL:-Qwen/Qwen3.6-27B-FP8}
+      - --served-model-name
+      - ${SERVED_MODEL_NAME:-qwen3.6-27b-fp8}
+      - --chat-template
+      - /app/chat-templates/qwen36.jinja
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --tensor-parallel-size
+      - "2"
+      - --gpu-memory-utilization
+      - "0.80"
+      - --max-model-len
+      - "16384"
