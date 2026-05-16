@@ -210,6 +210,9 @@ for name in ("torch", "torchaudio", "torchvision", "triton"):
         raise SystemExit(f"{name} changed from {expected} to {actual}")
 PY
 
+    # Keep Transformers current in the final image after source builds install their requirements.
+    RUN python3 -m pip install -c /opt/build-info/base-constraints.txt --upgrade transformers
+
 # Validate imports during build. This may not see a GPU at build time, but imports must work.
 RUN python3 - <<'PY' > /opt/build-info/final-python-env.txt
 import sys
@@ -227,6 +230,9 @@ print("triton:", triton.__version__)
 
 import vllm
 print("vllm:", vllm.__version__)
+
+import transformers
+print("transformers:", transformers.__version__)
 
 import aiter
 print("aiter: ok")

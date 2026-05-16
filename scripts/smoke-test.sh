@@ -22,12 +22,13 @@ COMMON_ARGS=(
   --entrypoint /bin/bash \
   "${IMAGE_NAME}" \
   -lc 'python3 - <<'"'"'PY'"'"'
-import torch, vllm, aiter
+import torch, vllm, aiter, transformers
 print("torch:", torch.__version__)
 print("hip:", torch.version.hip)
 print("available:", torch.cuda.is_available())
 print("device:", torch.cuda.get_device_name(0) if torch.cuda.is_available() else "NO GPU")
 print("vllm:", vllm.__version__)
+print("transformers:", transformers.__version__)
 print("aiter: ok")
 PY'
 

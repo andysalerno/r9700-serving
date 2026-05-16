@@ -54,4 +54,4 @@ services:
       --enable-prefix-caching
       -tp 2
       --gpu-memory-utilization 0.93
-      --max-model-len 16384
+      --max-model-len 128000
