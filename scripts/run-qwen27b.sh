@@ -2,8 +2,8 @@
 set -euo pipefail
 
 IMAGE_NAME="${IMAGE_NAME:-vllm-r9700-aiter:rocm713-current}"
-MODEL="${MODEL:-Qwen/Qwen3.6-35B-A3B-FP8}"
-SERVED_MODEL_NAME="${SERVED_MODEL_NAME:-qwen3.6-35b-a3b-fp8}"
+MODEL="${MODEL:-Qwen/Qwen3.6-27B-FP8}"
+SERVED_MODEL_NAME="${SERVED_MODEL_NAME:-qwen3.6-27b-fp8}"
 PODMAN="${PODMAN:-podman}"
 
 "${PODMAN}" run --rm -it \
