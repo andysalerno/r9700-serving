@@ -1,0 +1,241 @@
+# syntax=docker/dockerfile:1.7
+
+# AMD-published ROCm/vLLM image.
+# This image gives us a recent ROCm / TheRock / gfx120X-all / PyTorch / Triton stack.
+ARG BASE_IMAGE=rocm/vllm:rocm7.13.0_gfx120X-all_ubuntu24.04_py3.13_pytorch_2.10.0_vllm_0.19.1
+
+FROM ${BASE_IMAGE} AS base
+
+ARG GFX_ARCH=gfx1201
+ARG BUILD_JOBS=16
+
+# Upstream vLLM source to build.
+ARG VLLM_REPO=https://github.com/vllm-project/vllm.git
+ARG VLLM_REF=main
+
+# AITER source to build.
+ARG AITER_REPO=https://github.com/ROCm/aiter.git
+ARG AITER_REF=main
+
+# Start with 0. If the build works and runtime is stable, try 1 later.
+ARG PREBUILD_AITER_KERNELS=0
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# ROCm / HIP / build environment.
+# Inherit ROCM_PATH, PATH, and LD_LIBRARY_PATH from AMD's TheRock base image.
+ENV HIP_PLATFORM=amd \
+    VLLM_TARGET_DEVICE=rocm \
+    PYTORCH_ROCM_ARCH=${GFX_ARCH} \
+    HIP_ARCHITECTURES=${GFX_ARCH} \
+    AMDGPU_TARGETS=${GFX_ARCH} \
+    GPU_ARCHS=${GFX_ARCH} \
+    AITER_ROCM_ARCH=${GFX_ARCH} \
+    HIP_FORCE_DEV_KERNARG=1 \
+    TORCH_BLAS_PREFER_HIPBLASLT=1 \
+    ROCBLAS_USE_HIPBLASLT=1 \
+    TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1 \
+    HSA_NO_SCRATCH_RECLAIM=1 \
+    RAY_EXPERIMENTAL_NOSET_ROCR_VISIBLE_DEVICES=1 \
+    UV_HTTP_TIMEOUT=500 \
+    UV_INDEX_STRATEGY=unsafe-best-match \
+    UV_LINK_MODE=copy
+
+# Some build tooling still probes /opt/rocm even though the TheRock base keeps
+# the SDK under site-packages. Create a compatibility link inside the image.
+RUN if [ ! -e /opt/rocm ] && [ -n "${ROCM_PATH:-}" ] && [ -d "${ROCM_PATH}" ]; then \
+            ln -s "${ROCM_PATH}" /opt/rocm; \
+        fi && \
+        echo "ROCM_PATH=${ROCM_PATH:-}" && \
+        echo "PATH=${PATH}" && \
+        echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}"
+
+# Install build dependencies. Keep this close to vLLM's ROCm Dockerfile assumptions.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    ca-certificates \
+    build-essential \
+    cmake \
+    ninja-build \
+    pkg-config \
+    python3-dev \
+    libnuma-dev \
+    sqlite3 \
+    libsqlite3-dev \
+    libfmt-dev \
+    libmsgpack-dev \
+    libsuitesparse-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Ensure Python build tooling is sane without moving the base torch/triton stack.
+RUN python3 -m pip install --upgrade \
+    pip \
+    "setuptools<80" \
+    wheel \
+    packaging \
+    "cmake<4" \
+    ninja \
+    pybind11 \
+    Cython
+
+# Install uv if the base image does not already have it.
+RUN if ! command -v uv >/dev/null 2>&1; then \
+      curl -LsSf --retry 3 --retry-delay 5 https://astral.sh/uv/install.sh -o /tmp/uv-install.sh && \
+      env UV_INSTALL_DIR="/usr/local/bin" sh /tmp/uv-install.sh && \
+      rm -f /tmp/uv-install.sh; \
+    fi && uv --version
+
+# Record the inherited base environment before modifying vLLM.
+RUN mkdir -p /opt/build-info && \
+    python3 - <<'PY' > /opt/build-info/base-python-env.txt
+import sys
+print("python:", sys.version)
+
+try:
+    import torch
+    print("torch:", torch.__version__)
+    print("torch.version.hip:", torch.version.hip)
+    print("cuda_available:", torch.cuda.is_available())
+    if torch.cuda.is_available():
+        print("device:", torch.cuda.get_device_name(0))
+except Exception as exc:
+    print("torch import failed:", repr(exc))
+
+try:
+    import triton
+    print("triton:", triton.__version__)
+except Exception as exc:
+    print("triton import failed:", repr(exc))
+
+try:
+    import vllm
+    print("base vllm:", vllm.__version__)
+except Exception as exc:
+    print("base vllm import failed:", repr(exc))
+PY
+
+RUN cat /opt/build-info/base-python-env.txt
+
+# Pin inherited ROCm-sensitive Python packages as constraints. If upstream vLLM
+# or AITER requirements conflict, pip should fail instead of replacing them.
+RUN python3 - <<'PY' > /opt/build-info/base-constraints.txt
+from importlib import metadata
+from packaging.utils import canonicalize_name
+
+locked_names = {
+    "torch",
+    "torchaudio",
+    "torchvision",
+    "triton",
+    "pytorch-triton-rocm",
+}
+
+for dist in sorted(metadata.distributions(), key=lambda item: canonicalize_name(item.metadata["Name"])):
+    name = canonicalize_name(dist.metadata["Name"])
+    if name in locked_names or name.startswith("pytorch-triton"):
+        print(f"{name}=={dist.version}")
+PY
+
+# Remove AMD's pinned vLLM, but keep the ROCm/PyTorch/Triton base stack.
+RUN python3 -m pip uninstall -y vllm || true
+
+WORKDIR /src
+
+# Build vLLM from source.
+#
+# Notes:
+# - Use requirements/rocm.txt from the target vLLM source.
+# - Preserve AMD's ROCm torch/triton with /opt/build-info/base-constraints.txt.
+# - Use --no-deps when installing the wheel so the base stack remains intact.
+RUN git clone ${VLLM_REPO} vllm && \
+    cd vllm && \
+    git fetch --tags --all && \
+    git checkout ${VLLM_REF} && \
+    python3 -m pip install -c /opt/build-info/base-constraints.txt -r requirements/rocm.txt && \
+    python3 setup.py clean --all && \
+    VLLM_TARGET_DEVICE=rocm \
+    PYTORCH_ROCM_ARCH=${GFX_ARCH} \
+    HIP_ARCHITECTURES=${GFX_ARCH} \
+    AMDGPU_TARGETS=${GFX_ARCH} \
+    GPU_ARCHS=${GFX_ARCH} \
+    MAX_JOBS=${BUILD_JOBS} \
+    python3 setup.py bdist_wheel --dist-dir=/tmp/vllm-dist && \
+    python3 -m pip install --no-deps --force-reinstall /tmp/vllm-dist/*.whl
+
+# Build AITER from source for gfx1201.
+#
+# PREBUILD_AITER_KERNELS=0 is the safer initial choice on RDNA4.
+# After the basic image works, test PREBUILD_AITER_KERNELS=1 separately.
+RUN git clone --recursive ${AITER_REPO} aiter && \
+    cd aiter && \
+    git fetch --tags --all && \
+    git checkout ${AITER_REF} && \
+    git submodule update --init --recursive && \
+    python3 -m pip install -c /opt/build-info/base-constraints.txt -r requirements.txt && \
+    python3 -m pip install pyyaml && \
+    PREBUILD_KERNELS=${PREBUILD_AITER_KERNELS} \
+    GPU_ARCHS=${GFX_ARCH} \
+    AITER_ROCM_ARCH=${GFX_ARCH} \
+    PYTORCH_ROCM_ARCH=${GFX_ARCH} \
+    HIP_ARCHITECTURES=${GFX_ARCH} \
+    AMDGPU_TARGETS=${GFX_ARCH} \
+    MAX_JOBS=${BUILD_JOBS} \
+    python3 setup.py bdist_wheel --dist-dir=/tmp/aiter-dist && \
+    python3 -m pip install --no-deps --force-reinstall /tmp/aiter-dist/*.whl
+
+# AITER/vLLM build-time requirements may install upstream Triton under the same
+# distribution name. Restore AMD's ROCm Triton wheel before runtime validation.
+RUN triton_pin="$(grep '^triton==' /opt/build-info/base-constraints.txt)" && \
+    if [ -n "${triton_pin}" ]; then \
+      python3 -m pip install --no-deps --force-reinstall "${triton_pin}"; \
+    fi && \
+    python3 - <<'PY'
+from importlib import metadata
+
+pins = {}
+with open("/opt/build-info/base-constraints.txt", encoding="utf-8") as constraints:
+    for line in constraints:
+        line = line.strip()
+        if "==" in line:
+            name, version = line.split("==", 1)
+            pins[name] = version
+
+for name in ("torch", "torchaudio", "torchvision", "triton"):
+    expected = pins.get(name)
+    if expected is None:
+        continue
+    actual = metadata.version(name)
+    if actual != expected:
+        raise SystemExit(f"{name} changed from {expected} to {actual}")
+PY
+
+# Validate imports during build. This may not see a GPU at build time, but imports must work.
+RUN python3 - <<'PY' > /opt/build-info/final-python-env.txt
+import sys
+print("python:", sys.version)
+
+import torch
+print("torch:", torch.__version__)
+print("torch.version.hip:", torch.version.hip)
+print("torch.cuda.is_available:", torch.cuda.is_available())
+if torch.cuda.is_available():
+    print("device:", torch.cuda.get_device_name(0))
+
+import triton
+print("triton:", triton.__version__)
+
+import vllm
+print("vllm:", vllm.__version__)
+
+import aiter
+print("aiter: ok")
+PY
+
+RUN cat /opt/build-info/final-python-env.txt
+
+WORKDIR /workspace
+
+EXPOSE 8000
+
+ENTRYPOINT ["python3", "-m", "vllm.entrypoints.openai.api_server"]
