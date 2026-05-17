@@ -1,0 +1,203 @@
+# syntax=docker/dockerfile:1.7
+
+# Container-native version of build-vllm-rocm-workflow.yaml.
+# The workflow creates a relocatable artifact; this image keeps the same Python
+# package layout under /opt/vllm, but relies on the container's Python 3.12 and
+# linker cache instead of a launcher that rewrites LD_LIBRARY_PATH.
+
+ARG UBUNTU_VERSION=24.04
+
+FROM ubuntu:${UBUNTU_VERSION} AS build
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG GFX_TARGET=gfx120X
+ARG TORCH_VERSION=
+ARG TORCHVISION_VERSION=
+ARG VLLM_VERSION=
+ARG VLLM_EXTRA_INDEX_URL=https://wheels.vllm.ai/rocm/
+
+ENV VIRTUAL_ENV=/opt/vllm
+ENV PATH=/opt/vllm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ENV PYTHONPATH=/opt/vllm/lib/python3.12/site-packages/_rocm_sdk_core/share/amd_smi
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        build-essential \
+        gcc \
+        python3 \
+        python3-dev \
+        python3-venv \
+    ; \
+    rm -rf /var/lib/apt/lists/*
+
+RUN set -eux; \
+    python3 -m venv "${VIRTUAL_ENV}"; \
+    python -m pip install --upgrade pip setuptools wheel packaging
+
+RUN set -eux; \
+    case "${GFX_TARGET}" in \
+        gfx110X) wheel_suffix="gfx110X-all" ;; \
+        gfx1151) wheel_suffix="gfx1151" ;; \
+        gfx1150) wheel_suffix="gfx1150" ;; \
+        gfx120X) wheel_suffix="gfx120X-all" ;; \
+        *) echo "ERROR: No AMD pre-built wheels for target: ${GFX_TARGET}" >&2; exit 1 ;; \
+    esac; \
+    torch_index="https://repo.amd.com/rocm/whl/${wheel_suffix}/"; \
+    torch_spec="torch${TORCH_VERSION:+==${TORCH_VERSION}}"; \
+    torchvision_spec="torchvision${TORCHVISION_VERSION:+==${TORCHVISION_VERSION}}"; \
+    echo "Using PyTorch index: ${torch_index}"; \
+    echo "Using vLLM extra index: ${VLLM_EXTRA_INDEX_URL}"; \
+    python -m pip install --index-url "${torch_index}" "${torch_spec}" "${torchvision_spec}"; \
+    python -c 'import torch; print(f"PyTorch {torch.__version__}"); print(f"ROCm built-in: {torch.version.hip is not None}")'
+RUN set -eux; \
+    case "${GFX_TARGET}" in \
+        gfx110X) wheel_suffix="gfx110X-all" ;; \
+        gfx1151) wheel_suffix="gfx1151" ;; \
+        gfx1150) wheel_suffix="gfx1150" ;; \
+        gfx120X) wheel_suffix="gfx120X-all" ;; \
+        *) echo "ERROR: No AMD pre-built wheels for target: ${GFX_TARGET}" >&2; exit 1 ;; \
+    esac; \
+    torch_index="https://repo.amd.com/rocm/whl/${wheel_suffix}/"; \
+    torch_spec="torch${TORCH_VERSION:+==${TORCH_VERSION}}"; \
+    vllm_spec="vllm${VLLM_VERSION:+==${VLLM_VERSION}}"; \
+    python -m pip install --extra-index-url "${VLLM_EXTRA_INDEX_URL}" "${vllm_spec}"; \
+    python -m pip install --force-reinstall --no-deps --index-url "${torch_index}" "${torch_spec}"; \
+    site_packages="$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"; \
+    rm -rf "${site_packages}"/amdsmi "${site_packages}"/amdsmi-*.dist-info; \
+    echo "vLLM installed; import check runs after ROCm library paths are registered"
+
+RUN set -eux; \
+    site_packages="$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"; \
+    rocm_lib="${site_packages}/_rocm_sdk_core/lib"; \
+    if [ -d "${rocm_lib}" ]; then \
+        for lib in "${rocm_lib}"/*.so.*; do \
+            [ -e "${lib}" ] || continue; \
+            name="$(basename "${lib}")"; \
+            link="${rocm_lib}/${name%%.*}.so"; \
+            [ -e "${link}" ] || ln -sf "${name}" "${link}"; \
+        done; \
+    fi; \
+    { \
+        find "${site_packages}" -maxdepth 2 -type d -path '*/_rocm_sdk_*/lib' -print; \
+        [ ! -d "${site_packages}/torch/lib" ] || printf '%s\n' "${site_packages}/torch/lib"; \
+        [ ! -d "${site_packages}/_rocm_sdk_core/lib/llvm/lib" ] || printf '%s\n' "${site_packages}/_rocm_sdk_core/lib/llvm/lib"; \
+        [ ! -d "${site_packages}/_rocm_sdk_core/lib/rocm_sysdeps/lib" ] || printf '%s\n' "${site_packages}/_rocm_sdk_core/lib/rocm_sysdeps/lib"; \
+    } | sort -u > /etc/ld.so.conf.d/vllm-rocm-python.conf; \
+    ldconfig; \
+    cat /etc/ld.so.conf.d/vllm-rocm-python.conf; \
+    python -c 'import torch, vllm; print(f"PyTorch {torch.__version__}"); print(f"vLLM {vllm.__version__}"); print("Both imports OK")'
+
+RUN set -eux; \
+    site_packages="$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"; \
+    triton_amd="${site_packages}/triton/backends/amd"; \
+    test -f "${triton_amd}/driver.c"; \
+    TRITON_AMD="${triton_amd}" python -c 'import os; from pathlib import Path; src_path = Path(os.environ["TRITON_AMD"]) / "driver.c"; src = src_path.read_text().replace("/*py_libhip_search_path*/", "libamdhip64.so", 1); Path("/tmp/hip_utils.c").write_text(src); print("Generated /tmp/hip_utils.c")'
+RUN set -eux; \
+    site_packages="$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"; \
+    triton_amd="${site_packages}/triton/backends/amd"; \
+    python_include="$(python -c 'import sysconfig; print(sysconfig.get_paths()["include"])')"; \
+    gcc /tmp/hip_utils.c -O3 -shared -fPIC -Wno-psabi \
+        -o "${triton_amd}/hip_utils_prebuilt.so" \
+        -I"${triton_amd}/include" \
+        -I"${python_include}"; \
+    TRITON_AMD="${triton_amd}" python -c 'import ast, os; from pathlib import Path; driver_py = Path(os.environ["TRITON_AMD"]) / "driver.py"; text = driver_py.read_text(); old = "mod = compile_module_from_src(src=src, name=\"hip_utils\", include_dirs=include_dirs)"; new = "\n".join(["_pso = os.path.join(dirname, \"hip_utils_prebuilt.so\")", "        if os.path.exists(_pso):", "            import importlib.util as _ilu", "            _sp = _ilu.spec_from_file_location(\"hip_utils\", _pso)", "            mod = _ilu.module_from_spec(_sp)", "            _sp.loader.exec_module(mod)", "        else:", "            mod = compile_module_from_src(src=src, name=\"hip_utils\", include_dirs=include_dirs)"]); text = text.replace(old, new, 1) if old in text else text; ("hip_utils_prebuilt.so" in text) or (_ for _ in ()).throw(SystemExit("Could not find Triton hip_utils compile call to patch")); driver_py.write_text(text); ast.parse(text); print("Patched Triton AMD driver.py")'
+
+RUN set -eux; \
+    site_packages="$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"; \
+    echo "Size before cleanup:"; \
+    du -sh /opt/vllm; \
+    rm -rf "${site_packages}"/pip* "${site_packages}"/wheel* /opt/vllm/bin/pip*; \
+    find /opt/vllm -type d -name "__pycache__" -prune -exec rm -rf {} +; \
+    find /opt/vllm -name "*.pyc" -delete; \
+    rm -rf "${site_packages}"/torch/test "${site_packages}"/torch/benchmarks; \
+    rm -rf "${site_packages}"/pyarrow* "${site_packages}"/opencv* "${site_packages}"/cv2*; \
+    rm -rf "${site_packages}"/onnx* "${site_packages}"/pandas* "${site_packages}"/plotly*; \
+    rm -rf "${site_packages}"/datasets* "${site_packages}"/evaluate* "${site_packages}"/peft* "${site_packages}"/timm*; \
+    rm -rf "${site_packages}"/boto3* "${site_packages}"/botocore* "${site_packages}"/s3transfer*; \
+    rm -rf "${site_packages}"/azure* "${site_packages}"/google_cloud* "${site_packages}"/google_auth* "${site_packages}"/msal*; \
+    rm -rf "${site_packages}"/tensorizer* "${site_packages}"/runai* "${site_packages}"/aiter_meta*; \
+    llvm_dir="${site_packages}/_rocm_sdk_core/lib/llvm"; \
+    if [ -d "${llvm_dir}/bin" ]; then \
+        find "${llvm_dir}/bin" -type f ! -name "clang" ! -name "clang-22" -delete; \
+        find "${llvm_dir}/bin" -type l ! -name "clang" -delete; \
+    fi; \
+    if [ -d "${llvm_dir}/lib" ]; then \
+        find "${llvm_dir}/lib" -name "*.so*" \
+            ! -name "libclang-cpp*" \
+            ! -name "libLLVM*" \
+            -delete; \
+        rm -rf "${llvm_dir}/lib/clang/22/include/cuda_wrappers"; \
+    fi; \
+    rm -rf "${site_packages}/_rocm_sdk_core/bin"; \
+    find "${llvm_dir}/bin" -maxdepth 1 -name 'clang*' -exec chmod +x {} + 2>/dev/null || true; \
+    echo "Size after cleanup:"; \
+    du -sh /opt/vllm
+
+RUN set -eux; \
+    python -c 'import pathlib, torch, vllm; print(f"vLLM {vllm.__version__} OK"); print(f"PyTorch {torch.__version__} OK"); site_packages = pathlib.Path("/opt/vllm/lib/python3.12/site-packages"); vllm_dir = site_packages / "vllm"; extensions = ("_C.abi3.so", "_rocm_C.abi3.so"); missing = [extension for extension in extensions if not (vllm_dir / extension).exists()]; missing and (_ for _ in ()).throw(SystemExit(f"Missing {missing[0]}")); [print("{}: {} MB".format(extension, (vllm_dir / extension).stat().st_size // 1048576)) for extension in extensions]; print("Native extensions verified")'
+
+FROM ubuntu:${UBUNTU_VERSION} AS runtime
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG GFX_ARCH=gfx1201
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        libdrm2 \
+        libelf1 \
+        libgfortran5 \
+        libgomp1 \
+        libnuma1 \
+        libstdc++6 \
+        python3 \
+        python3-dev \
+    ; \
+    rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /opt/vllm /opt/vllm
+
+ENV VIRTUAL_ENV=/opt/vllm
+ENV ROCM_PATH=/opt/vllm/lib/python3.12/site-packages/_rocm_sdk_core
+ENV HIP_PATH=/opt/vllm/lib/python3.12/site-packages/_rocm_sdk_core
+ENV PATH=/opt/vllm/bin:/opt/vllm/lib/python3.12/site-packages/_rocm_sdk_core/lib/llvm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ENV PYTHONPATH=/opt/vllm/lib/python3.12/site-packages/_rocm_sdk_core/share/amd_smi
+ENV CC=/opt/vllm/lib/python3.12/site-packages/_rocm_sdk_core/lib/llvm/bin/clang
+ENV CXX=/opt/vllm/lib/python3.12/site-packages/_rocm_sdk_core/lib/llvm/bin/clang
+ENV HIP_PLATFORM=amd \
+    VLLM_TARGET_DEVICE=rocm \
+    FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE \
+    PYTORCH_ROCM_ARCH=${GFX_ARCH} \
+    HIP_ARCHITECTURES=${GFX_ARCH} \
+    AMDGPU_TARGETS=${GFX_ARCH} \
+    GPU_ARCHS=${GFX_ARCH} \
+    HIP_FORCE_DEV_KERNARG=1 \
+    TORCH_BLAS_PREFER_HIPBLASLT=1 \
+    ROCBLAS_USE_HIPBLASLT=1 \
+    HSA_NO_SCRATCH_RECLAIM=1 \
+    RAY_EXPERIMENTAL_NOSET_ROCR_VISIBLE_DEVICES=1 \
+    TRITON_CACHE_DIR=/root/.cache/triton \
+    TORCHINDUCTOR_CACHE_DIR=/root/.cache/torch/inductor
+
+RUN set -eux; \
+    site_packages="$(python3 -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"; \
+    { \
+        find "${site_packages}" -maxdepth 2 -type d -path '*/_rocm_sdk_*/lib' -print; \
+        [ ! -d "${site_packages}/torch/lib" ] || printf '%s\n' "${site_packages}/torch/lib"; \
+        [ ! -d "${site_packages}/_rocm_sdk_core/lib/llvm/lib" ] || printf '%s\n' "${site_packages}/_rocm_sdk_core/lib/llvm/lib"; \
+        [ ! -d "${site_packages}/_rocm_sdk_core/lib/rocm_sysdeps/lib" ] || printf '%s\n' "${site_packages}/_rocm_sdk_core/lib/rocm_sysdeps/lib"; \
+    } | sort -u > /etc/ld.so.conf.d/vllm-rocm-python.conf; \
+    ldconfig; \
+    python3 -c 'import torch, vllm; print(f"PyTorch {torch.__version__}"); print(f"ROCm built-in: {torch.version.hip is not None}"); print(f"vLLM {vllm.__version__}")'
+
+WORKDIR /workspace
+
+EXPOSE 8000
+
+ENTRYPOINT ["/opt/vllm/bin/python", "-m", "vllm.entrypoints.openai.api_server"]

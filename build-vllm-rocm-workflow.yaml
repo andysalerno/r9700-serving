@@ -1,0 +1,444 @@
+name: Build vLLM + ROCm
+on:
+  workflow_dispatch:
+    inputs:
+      gfx_target:
+        description: 'AMD GPU targets (comma-separated)'
+        required: false
+        default: 'gfx110X,gfx1151,gfx1150,gfx120X'
+      create_release:
+        description: 'Create a GitHub release after successful build'
+        required: false
+        default: true
+        type: boolean
+
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+  schedule:
+    - cron: '0 15 * * 0'
+
+env:
+  GFX_TARGETS: ${{ github.event.inputs.gfx_target || 'gfx110X,gfx1151,gfx1150,gfx120X' }}
+
+jobs:
+  prepare-matrix:
+    runs-on: ubuntu-22.04
+    outputs:
+      ubuntu_matrix: ${{ steps.set-matrix.outputs.ubuntu_matrix }}
+    steps:
+    - name: Set matrix
+      id: set-matrix
+      run: |
+        targets="${{ env.GFX_TARGETS }}"
+        matrix_targets=$(echo "$targets" \
+          | tr ',' '\n' \
+          | sed 's/^ *//;s/ *$//' \
+          | jq -R . \
+          | jq -s '{gfx_target: .}' \
+          | jq -c)
+        echo "ubuntu_matrix=$matrix_targets" >> $GITHUB_OUTPUT
+        echo "Generated matrix: $matrix_targets"
+
+  build-ubuntu:
+    runs-on: ubuntu-22.04
+    needs: prepare-matrix
+    strategy:
+      matrix: ${{fromJson(needs.prepare-matrix.outputs.ubuntu_matrix)}}
+      fail-fast: false
+    outputs:
+      vllm_version: ${{ steps.set-outputs.outputs.vllm_version }}
+      torch_version: ${{ steps.set-outputs.outputs.torch_version }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Download portable Python 3.12 (python-build-standalone)
+      run: |
+        # Use astral-sh/python-build-standalone for a relocatable Python
+        # that works across Linux distros without system Python dependency.
+        PBS_TAG="20250604"
+        PBS_URL="https://github.com/astral-sh/python-build-standalone/releases/download/${PBS_TAG}/cpython-3.12.11+${PBS_TAG}-x86_64-unknown-linux-gnu-install_only.tar.gz"
+        echo "Downloading portable Python from $PBS_URL"
+        # Extracts to python/ — move to /opt/vllm so it becomes the release root
+        curl -fsSL "$PBS_URL" | tar -xz -C /opt
+        mv /opt/python /opt/vllm
+        /opt/vllm/bin/python3.12 --version
+        echo "Portable Python installed at /opt/vllm"
+
+    - name: Map GPU target to AMD wheel URLs
+      id: wheel-urls
+      run: |
+        target="${{ matrix.gfx_target }}"
+
+        # Map targets to AMD wheel URL suffixes
+        # See: https://rocm.docs.amd.com/en/latest/rocm-for-ai/vllm.html
+        case "$target" in
+          gfx110X) suffix="gfx110X-all" ;;
+          gfx1151) suffix="gfx1151" ;;
+          gfx1150) suffix="gfx1150" ;;
+          gfx120X) suffix="gfx120X-all" ;;
+          *)
+            echo "ERROR: No AMD pre-built wheels for target: $target"
+            exit 1
+            ;;
+        esac
+
+        echo "torch_index=https://repo.amd.com/rocm/whl/${suffix}/" >> $GITHUB_OUTPUT
+        echo "vllm_index=https://rocm.frameworks.amd.com/whl/${suffix}/" >> $GITHUB_OUTPUT
+        echo "Using PyTorch index: https://repo.amd.com/rocm/whl/${suffix}/"
+        echo "Using vLLM index: https://rocm.frameworks.amd.com/whl/${suffix}/"
+
+    - name: Prepare Python environment
+      run: |
+        # No venv needed — install packages directly into the standalone Python.
+        /opt/vllm/bin/python3 -m pip install --upgrade pip
+        echo "Python: $(/opt/vllm/bin/python3 --version)"
+
+    - name: Install PyTorch ROCm from AMD
+      run: |
+        echo "Installing PyTorch from AMD ROCm wheel index..."
+        /opt/vllm/bin/pip install \
+          --index-url "${{ steps.wheel-urls.outputs.torch_index }}" \
+          torch torchvision
+        /opt/vllm/bin/python3 -c "
+        import torch
+        print(f'PyTorch {torch.__version__}')
+        print(f'ROCm built-in: {torch.version.hip is not None}')
+        "
+
+    - name: Install vLLM ROCm (official wheel with ROCm native extensions)
+      run: |
+        echo "Installing vLLM from official ROCm wheel index..."
+        /opt/vllm/bin/pip install \
+          --extra-index-url https://wheels.vllm.ai/rocm/ \
+          vllm
+        echo "vLLM installed (import check deferred until after torch reinstall)"
+
+    - name: Reinstall AMD PyTorch ROCm (compatible with pip ROCm SDK)
+      run: |
+        echo "Reinstalling AMD torch to match bundled ROCm SDK libraries..."
+        /opt/vllm/bin/pip install --force-reinstall --no-deps \
+          --index-url "${{ steps.wheel-urls.outputs.torch_index }}" \
+          torch
+
+        # Remove the vLLM-bundled amdsmi (v26.2.2 from ROCm 7.2.1) —
+        # it conflicts with the AMD pip ROCm SDK amdsmi (v26.3.0).
+        # The ROCm SDK version in _rocm_sdk_core/share/amd_smi/ is used instead.
+        SP="/opt/vllm/lib/python3.12/site-packages"
+        rm -rf $SP/amdsmi $SP/amdsmi-*.dist-info
+
+        for libdir in $SP/_rocm_sdk_*/lib $SP/torch/lib; do
+          [ -d "$libdir" ] && LD_LIBRARY_PATH="${libdir}:${LD_LIBRARY_PATH:-}"
+        done
+        export LD_LIBRARY_PATH
+        /opt/vllm/bin/python3 -c "
+        import torch; print(f'PyTorch {torch.__version__}')
+        import vllm; print(f'vLLM {vllm.__version__}')
+        print('Both imports OK')
+        "
+
+    - name: Pre-compile Triton HIP utilities (eliminates gcc dependency)
+      run: |
+        SP="/opt/vllm/lib/python3.12/site-packages"
+        TRITON_AMD="$SP/triton/backends/amd"
+        for libdir in $SP/_rocm_sdk_*/lib $SP/torch/lib; do
+          [ -d "$libdir" ] && LD_LIBRARY_PATH="${libdir}:${LD_LIBRARY_PATH:-}"
+        done
+        export LD_LIBRARY_PATH
+
+        # Create unversioned symlinks for ROCm libs (pip installs only have versioned .so.N)
+        ROCM_LIB="$SP/_rocm_sdk_core/lib"
+        for lib in "$ROCM_LIB"/*.so.*; do
+          name=$(basename "$lib")
+          link="$ROCM_LIB/${name%%.*}.so"
+          [ ! -e "$link" ] && ln -sf "$name" "$link"
+        done
+        ls -la "$ROCM_LIB/libamdhip64.so" || echo "WARNING: symlink not created"
+
+        # Compile the hip_utils C module with gcc directly and save into the package.
+        # We can't use Triton's compile_module_from_src because it also tries to
+        # dlopen the HIP library, which doesn't work on headless CI.
+        TRITON_AMD="$SP/triton/backends/amd"
+        PYTHON_INC="/opt/vllm/include/python3.12"
+
+        # Generate the C source with the HIP library path baked in
+        /opt/vllm/bin/python3 -c "
+        from pathlib import Path
+        import os
+        dirname = '$TRITON_AMD'
+        src = Path(os.path.join(dirname, 'driver.c')).read_text()
+        # Bake in the relative path that will resolve at runtime via LD_LIBRARY_PATH
+        src = src.replace('/*py_libhip_search_path*/', 'libamdhip64.so', 1)
+        Path('/tmp/hip_utils.c').write_text(src)
+        print('Generated /tmp/hip_utils.c')
+        "
+
+        # Compile with gcc
+        gcc /tmp/hip_utils.c -O3 -shared -fPIC -Wno-psabi \
+          -o "$TRITON_AMD/hip_utils_prebuilt.so" \
+          -I"$TRITON_AMD/include" \
+          -I"$PYTHON_INC"
+        echo "Pre-compiled: $TRITON_AMD/hip_utils_prebuilt.so ($(stat -c%s "$TRITON_AMD/hip_utils_prebuilt.so") bytes)"
+
+        # Patch Triton to load the pre-built .so instead of JIT-compiling
+        DRIVER_PY="$TRITON_AMD/driver.py"
+        sed -i 's|mod = compile_module_from_src(src=src, name="hip_utils", include_dirs=include_dirs)|_pso = os.path.join(dirname, "hip_utils_prebuilt.so")\n        if os.path.exists(_pso):\n            import importlib.util as _ilu\n            _sp = _ilu.spec_from_file_location("hip_utils", _pso)\n            mod = _ilu.module_from_spec(_sp)\n            _sp.loader.exec_module(mod)\n        else:\n            mod = compile_module_from_src(src=src, name="hip_utils", include_dirs=include_dirs)|' "$DRIVER_PY"
+        /opt/vllm/bin/python3 -c "import ast; ast.parse(open('$DRIVER_PY').read()); print('Patched driver.py — syntax OK')"
+
+    - name: Create launcher script
+      run: |
+        cat > /opt/vllm/bin/vllm-server << 'LAUNCHER_EOF'
+        #!/bin/bash
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        VENV_DIR="$(dirname "$SCRIPT_DIR")"
+        SP="$VENV_DIR/lib/python3.12/site-packages"
+        # Add all bundled ROCm library paths
+        for libdir in "$SP"/_rocm_sdk_*/lib "$SP"/torch/lib; do
+        [ -d "$libdir" ] && LD_LIBRARY_PATH="${libdir}:${LD_LIBRARY_PATH:-}"
+        done
+        # Also add LLVM lib for the bundled clang
+        LD_LIBRARY_PATH="$SP/_rocm_sdk_core/lib/llvm/lib:${LD_LIBRARY_PATH}"
+        export LD_LIBRARY_PATH
+        export PYTHONPATH="$SP/_rocm_sdk_core/share/amd_smi:${PYTHONPATH:-}"
+        export FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
+        # Use bundled clang for Triton JIT (no system gcc needed)
+        CLANG="$SP/_rocm_sdk_core/lib/llvm/bin/clang"
+        [ -f "$CLANG" ] && chmod +x "$CLANG" "$CLANG"-22 2>/dev/null
+        export CC="$CLANG"
+        exec "$SCRIPT_DIR/python3" -m vllm.entrypoints.openai.api_server "$@"
+        LAUNCHER_EOF
+
+        # Remove YAML indentation from heredoc
+        sed -i 's/^        //' /opt/vllm/bin/vllm-server
+        chmod +x /opt/vllm/bin/vllm-server
+        echo "Launcher script:"
+        cat /opt/vllm/bin/vllm-server
+
+    - name: Strip unnecessary files to reduce size
+      run: |
+        cd /opt/vllm
+        echo "=== Size before cleanup ==="
+        du -sh .
+
+        SP="lib/python3.12/site-packages"
+
+        # Remove pip/wheel (keep setuptools — torch.utils.cpp_extension needs it)
+        rm -rf $SP/pip* $SP/wheel* 2>/dev/null || true
+
+        # Remove __pycache__ and .pyc
+        find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+        find . -name "*.pyc" -delete 2>/dev/null || true
+
+        # Remove test/benchmark dirs (but NOT torch.testing — it's imported at runtime)
+        rm -rf $SP/torch/test $SP/torch/benchmarks 2>/dev/null || true
+
+        # Remove packages not needed for inference serving (~500MB)
+        rm -rf $SP/pyarrow* $SP/opencv* $SP/cv2* 2>/dev/null || true
+        rm -rf $SP/onnx* $SP/pandas* $SP/plotly* 2>/dev/null || true
+        rm -rf $SP/datasets* $SP/evaluate* $SP/peft* $SP/timm* 2>/dev/null || true
+        rm -rf $SP/boto3* $SP/botocore* $SP/s3transfer* 2>/dev/null || true
+        rm -rf $SP/azure* $SP/google_cloud* $SP/google_auth* $SP/msal* 2>/dev/null || true
+        rm -rf $SP/tensorizer* $SP/runai* 2>/dev/null || true
+        rm -rf $SP/aiter_meta* 2>/dev/null || true
+
+        # Trim LLVM toolchain: keep only clang + its libs (~350MB saved)
+        LLVM="$SP/_rocm_sdk_core/lib/llvm"
+        # Keep only clang, clang-22, remove everything else from bin/
+        find "$LLVM/bin" -type f ! -name "clang" ! -name "clang-22" -delete 2>/dev/null || true
+        find "$LLVM/bin" -type l ! -name "clang" -delete 2>/dev/null || true
+        # Keep only libs that clang needs (libclang-cpp, libLLVM, rocm_sysdeps)
+        find "$LLVM/lib" -name "*.so*" \
+          ! -name "libclang-cpp*" \
+          ! -name "libLLVM*" \
+          -delete 2>/dev/null || true
+        rm -rf "$LLVM/lib/clang/22/include/cuda_wrappers" 2>/dev/null || true
+
+        # Trim ROCm SDK bin/ (Python wrapper scripts, not needed)
+        rm -rf "$SP/_rocm_sdk_core/bin" 2>/dev/null || true
+
+        # Remove Python stdlib we don't need
+        rm -rf lib/python3.12/test lib/python3.12/tkinter lib/python3.12/idlelib 2>/dev/null || true
+        rm -rf lib/python3.12/turtledemo lib/python3.12/ensurepip 2>/dev/null || true
+        # Keep include/ — Triton JIT needs Python.h headers
+
+        # Ensure bundled clang is executable (permissions lost during tar)
+        chmod +x "$LLVM/bin/clang"* 2>/dev/null || true
+
+        # NOTE: Do NOT strip .so files — AMD ROCm wheels use special ELF
+        # alignment that strip corrupts, and numpy/scipy also break.
+
+        echo "=== Size after cleanup ==="
+        du -sh .
+        echo ""
+        echo "Top consumers:"
+        du -sh $SP/torch/ $SP/vllm/ $SP/_rocm_sdk_core/ $SP/aiter/ $SP/triton/ 2>/dev/null || true
+
+    - name: Verify bundled environment works
+      run: |
+        SP="/opt/vllm/lib/python3.12/site-packages"
+        for libdir in $SP/_rocm_sdk_*/lib $SP/torch/lib; do
+          [ -d "$libdir" ] && LD_LIBRARY_PATH="${libdir}:${LD_LIBRARY_PATH:-}"
+        done
+        export LD_LIBRARY_PATH
+
+        /opt/vllm/bin/python3 -c "import vllm; print(f'vLLM {vllm.__version__} OK')"
+        /opt/vllm/bin/python3 -c "import torch; print(f'PyTorch {torch.__version__} OK')"
+        /opt/vllm/bin/python3 -c "
+        # Verify native extensions exist (they load only with GPU present)
+        import os, pathlib
+        sp = pathlib.Path('$SP/vllm')
+        for ext in ['_C.abi3.so', '_rocm_C.abi3.so']:
+            p = sp / ext
+            assert p.exists(), f'Missing {ext}'
+            print(f'{ext}: {p.stat().st_size // 1048576} MB')
+        print('Native extensions verified')
+        "
+        bash -n /opt/vllm/bin/vllm-server
+        echo "All sanity checks passed"
+
+    - name: Report final size
+      run: |
+        echo "=== Final artifact ==="
+        du -sh /opt/vllm/
+        echo ""
+        du -sh /opt/vllm/*/ 2>/dev/null
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: vllm-ubuntu-rocm-${{ matrix.gfx_target }}-x64
+        path: /opt/vllm/
+        retention-days: 30
+        compression-level: 6
+
+    - name: Set job outputs
+      id: set-outputs
+      run: |
+        SP="/opt/vllm/lib/python3.12/site-packages"
+        for libdir in $SP/_rocm_sdk_*/lib $SP/torch/lib; do
+          [ -d "$libdir" ] && LD_LIBRARY_PATH="${libdir}:${LD_LIBRARY_PATH:-}"
+        done
+        export LD_LIBRARY_PATH
+
+        vllm_ver=$(/opt/vllm/bin/python3 -c "import vllm; print(vllm.__version__)")
+        torch_ver=$(/opt/vllm/bin/python3 -c "import torch; print(torch.__version__)")
+        echo "vllm_version=$vllm_ver" >> $GITHUB_OUTPUT
+        echo "torch_version=$torch_ver" >> $GITHUB_OUTPUT
+
+    - name: Clean up
+      if: always()
+      run: |
+        [ -d "/opt/vllm" ] && sudo rm -rf /opt/vllm
+
+  create-release:
+    needs: [prepare-matrix, build-ubuntu]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      pull-requests: write
+    strategy:
+      matrix: ${{fromJson(needs.prepare-matrix.outputs.ubuntu_matrix)}}
+      fail-fast: false
+    if: |
+      always() &&
+      needs.build-ubuntu.result == 'success' &&
+      github.event_name != 'pull_request' &&
+      (github.event_name == 'workflow_dispatch' &&
+       (github.event.inputs.create_release == 'true' || github.event.inputs.create_release == null) ||
+       github.event_name == 'schedule')
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Download build artifact for ${{ matrix.gfx_target }}
+      uses: actions/download-artifact@v4
+      with:
+        name: vllm-ubuntu-rocm-${{ matrix.gfx_target }}-x64
+        path: ./artifact
+
+    - name: Generate release tag
+      id: generate-tag
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        VLLM_VERSION="${{ needs.build-ubuntu.outputs.vllm_version }}"
+        TORCH_VERSION="${{ needs.build-ubuntu.outputs.torch_version }}"
+        TARGET="${{ matrix.gfx_target }}"
+
+        # Extract ROCm version from torch version string
+        ROCM_VERSION=$(echo "$TORCH_VERSION" | grep -oP 'rocm[\d.]+' || echo "rocm")
+
+        # Tag format: vllm{version}-{rocm_version}-{gfx_target}
+        # e.g. vllm0.19.0-rocm7.12.0-gfx1150
+        TAG="vllm${VLLM_VERSION}-${ROCM_VERSION}-${TARGET}"
+        echo "tag=${TAG}" >> $GITHUB_OUTPUT
+        echo "Generated release tag: ${TAG}"
+
+    - name: Create archive (split if >1.9 GB for GitHub release limit)
+      run: |
+        TAG="${{ steps.generate-tag.outputs.tag }}"
+        MAX_SIZE=1900  # MB — GitHub limit is 2 GB per asset
+        base="${TAG}-x64"
+
+        echo "Creating: ${base}.tar.gz"
+        tar -czf "${base}.tar.gz" -C ./artifact .
+        size_mb=$(du -m "${base}.tar.gz" | cut -f1)
+        echo "Archive size: ${size_mb} MB"
+
+        if [ "$size_mb" -gt "$MAX_SIZE" ]; then
+          echo "Splitting into ${MAX_SIZE}MB parts..."
+          # 1-based, 2-digit numeric suffixes -> {base}.part01.tar.gz, ...
+          split -b ${MAX_SIZE}M --numeric-suffixes=1 -a 2 \
+            --additional-suffix=.tar.gz \
+            "${base}.tar.gz" "${base}.part"
+          rm "${base}.tar.gz"
+
+          # Rename to HF-style partNN-of-MM.tar.gz, and emit a tiny manifest
+          # ({base}.partcount, one line with MM) so consumers can determine
+          # MM with a single HTTP GET instead of querying the GitHub Releases
+          # API (which is rate-limited to 60 req/hr per IP unauthenticated).
+          parts=( "${base}".part*.tar.gz )
+          total=${#parts[@]}
+          total_padded=$(printf "%02d" "$total")
+          for f in "${parts[@]}"; do
+            nn="${f##*.part}"; nn="${nn%%.tar.gz}"
+            mv "$f" "${base}.part${nn}-of-${total_padded}.tar.gz"
+          done
+          echo "$total" > "${base}.partcount"
+
+          echo "Parts created:"
+          ls -la "${base}".part*
+          echo "Manifest:"
+          cat "${base}.partcount"
+        fi
+
+        echo "=== Release assets ==="
+        ls -la *.tar.gz *.partcount 2>/dev/null || echo "No archives"
+
+    - name: Create Release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        TAG="${{ steps.generate-tag.outputs.tag }}"
+        VLLM_VERSION="${{ needs.build-ubuntu.outputs.vllm_version }}"
+        TORCH_VERSION="${{ needs.build-ubuntu.outputs.torch_version }}"
+        TARGET="${{ matrix.gfx_target }}"
+
+        upload_files=$(ls -1 *.tar.gz *.partcount 2>/dev/null | tr '\n' ' ')
+        echo "Files to upload: $upload_files"
+
+        # Delete existing release with same tag (idempotent rebuilds)
+        gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+
+        gh release create "$TAG" \
+          --title "$TAG" \
+          --notes "**GPU Target**: $TARGET
+        **vLLM Version**: $VLLM_VERSION
+        **PyTorch Version**: $TORCH_VERSION
+        **Build Date**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+        Portable vLLM build for $TARGET. Includes bundled Python, PyTorch ROCm, and ROCm runtime. No separate installation required." \
+          $upload_files
