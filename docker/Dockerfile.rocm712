@@ -39,7 +39,7 @@ RUN set -eux; \
     wget -qO - https://repo.amd.com/rocm/packages/gpg/rocm.gpg \
         | gpg --dearmor \
         > /etc/apt/keyrings/amdrocm.gpg; \
-    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] https://repo.amd.com/rocm/packages/ubuntu2404 stable main" \
+    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.gpg] https://repo.amd.com/rocm/packages/ubuntu2204 stable main" \
         > /etc/apt/sources.list.d/rocm.list; \
     apt-get update; \
     apt-get install -y --no-install-recommends "${ROCM_META_PACKAGE}"; \
