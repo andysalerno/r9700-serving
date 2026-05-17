@@ -1,6 +1,7 @@
 services:
   vllm-qwen36-r9700:
     # image: localhost/vllm-rocm-wheel:gfx120x
+    profiles: ["vllm-rocm"]
     image: docker.io/vllm/vllm-openai-rocm:nightly
     # image: docker.io/rocm/vllm:rocm7.13.0_gfx120X-all_ubuntu24.04_py3.13_pytorch_2.10.0_vllm_0.19.1
     container_name: vllm-qwen36-r9700
@@ -67,15 +68,78 @@ services:
       --gpu-memory-utilization 0.93
       --host 0.0.0.0
       --port 8000
+  llamacpp-rocm:
+    image: ghcr.io/ggml-org/llama.cpp:server-rocm
+    container_name: llamacpp-qwen36-rocm
+    profiles: ["llamacpp-rocm"]
+    ports:
+      - "8000:8080"
+    networks:
+      default:
+        aliases:
+          - llamacpp
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - "video"
+      # On your host this may be needed too; use numeric GID if Podman Compose dislikes names.
+      # - "render"
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - label=disable
+    ipc: host
+    volumes:
+      - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
+      - ${HOME}/.cache/llama.cpp:/root/.cache/llama.cpp:Z
+    environment:
+      LLAMA_ARG_HOST: "0.0.0.0"
+      LLAMA_ARG_PORT: "8000"
+      LLAMA_API_KEY: "sk-empty"
+      LLAMA_ARG_ALIAS: "qwen3.6-27b-gguf"
+      LLAMA_ARG_UI: "false"
+
+      LLAMA_ARG_HF_REPO: "unsloth/Qwen3.6-27B-GGUF:Q8_0"
+
+      # Rough equivalents to your vLLM serving config
+      LLAMA_ARG_CTX_SIZE: "128000"
+      # LLAMA_ARG_N_PARALLEL: "4"
+      # LLAMA_ARG_CONT_BATCHING: "1"
+      # LLAMA_ARG_BATCH: "2048"
+      # LLAMA_ARG_UBATCH: "512"
+      # LLAMA_ARG_CACHE_PROMPT: "1"
+      # LLAMA_ARG_ENDPOINT_METRICS: "1"
+      # LLAMA_ARG_ENDPOINT_SLOTS: "1"
+
+      # GPU/offload
+      HIP_VISIBLE_DEVICES: "0,1"
+      ROCR_VISIBLE_DEVICES: "0,1"
+      CUDA_VISIBLE_DEVICES: "0,1"
+      # LLAMA_ARG_DEVICE: "0,1"
+      # LLAMA_ARG_N_GPU_LAYERS: "all"
+      # LLAMA_ARG_SPLIT_MODE: "layer"
+      # LLAMA_ARG_TENSOR_SPLIT: "1,1"
+      # LLAMA_ARG_FLASH_ATTN: "auto"
+
+      # Sampling defaults close to your vLLM override
+      LLAMA_ARG_TEMPERATURE: "1.0"
+      LLAMA_ARG_TOP_P: "0.95"
+      LLAMA_ARG_TOP_K: "20"
+      LLAMA_ARG_MIN_P: "0.0"
+      LLAMA_ARG_PRESENCE_PENALTY: "0.0"
+      LLAMA_ARG_REPEAT_PENALTY: "1.0"
+
   chatui:
-    depends_on:
-      - vllm-qwen36-r9700
+    # depends_on:
+    #   - vllm-qwen36-r9700
     image: ghcr.io/huggingface/chat-ui-db:latest
     container_name: chatui
     ports:
       - "8001:3000"
     environment:
-      OPENAI_BASE_URL: "http://vllm-qwen36-r9700:8000/v1"
+      # OPENAI_BASE_URL: "http://vllm-qwen36-r9700:8000/v1"
+      OPENAI_BASE_URL: "http://llamacpp-qwen36-rocm:8000/v1"
       OPENAI_API_KEY: "sk-empty"
       COOKIE_SECURE: "false"
       PUBLIC_ORIGIN: "http://hirose.local:8001"
