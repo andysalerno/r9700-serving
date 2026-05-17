@@ -67,3 +67,19 @@ services:
       --gpu-memory-utilization 0.93
       --host 0.0.0.0
       --port 8000
+  chatui:
+    depends_on:
+      - vllm-qwen36-r9700
+    image: ghcr.io/huggingface/chat-ui-db:latest
+    container_name: chatui
+    ports:
+      - "8001:3000"
+    environment:
+      OPENAI_BASE_URL: "http://vllm-qwen36-r9700:8000/v1"
+      OPENAI_API_KEY: "sk-empty"
+      COOKIE_SECURE: "false"
+      PUBLIC_ORIGIN: "http://hirose.local:8001"
+    volumes:
+      - chat-ui-data:/data
+volumes:
+  chat-ui-data:
