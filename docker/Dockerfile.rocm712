@@ -1,8 +1,6 @@
 # syntax=docker/dockerfile:1
 
-# Docker's Ubuntu tag is 24.04/noble rather than a point-release-specific 24.04.3 tag.
-# AMD's ROCm 7.12 selector targets Ubuntu 24.04.3; this is the closest standard base.
-FROM ubuntu:24.04
+FROM ubuntu:22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -23,6 +21,7 @@ RUN set -eux; \
         ca-certificates \
         build-essential \
         gnupg \
+        libdrm-dev \
         libgl-dev \
         libglx-dev \
         libopengl-dev \
@@ -48,52 +47,25 @@ RUN set -eux; \
 
 # ROCm 7.12 packages install under /opt/rocm/core. Add compatibility links for
 # Dockerfiles and build scripts that expect the classic /opt/rocm layout.
-RUN set -eux; \
-    for path in bin include lib libexec share; do \
-        if [ ! -e "/opt/rocm/${path}" ] && [ -e "/opt/rocm/core/${path}" ]; then \
-            ln -s "core/${path}" "/opt/rocm/${path}"; \
-        fi; \
-    done; \
-    if [ ! -e /opt/rocm/llvm ] && [ -e /opt/rocm/core/lib/llvm ]; then \
-        ln -s core/lib/llvm /opt/rocm/llvm; \
-    fi; \
-    for tool_path in /opt/rocm/core/lib/llvm/bin/*; do \
-        tool="$(basename "${tool_path}")"; \
-        if [ ! -e "/opt/rocm/core/bin/${tool}" ]; then \
-            ln -s "../lib/llvm/bin/${tool}" "/opt/rocm/core/bin/${tool}"; \
-        fi; \
-    done
-
-# The ROCm 7.12 gfx120x hipsolver package ships libhipsolver but its generated
-# CMake export also references a missing libhipsolver_fortran target. PyTorch's
-# HIP configure imports the package and fails during CMake's existence check, so
-# remove that stale imported target from the installed export files.
-RUN python3 - <<'PY'
-from pathlib import Path
-
-targets = Path("/opt/rocm/core/lib/cmake/hipsolver/hipsolver-targets.cmake")
-release = Path("/opt/rocm/core/lib/cmake/hipsolver/hipsolver-targets-release.cmake")
-fortran_library = Path("/opt/rocm/core/lib/libhipsolver_fortran.so.1.0")
-
-if targets.exists() and release.exists() and not fortran_library.exists():
-    text = targets.read_text()
-    text = text.replace(
-        "foreach(_cmake_expected_target IN ITEMS roc::hipsolver_fortran roc::hipsolver)",
-        "foreach(_cmake_expected_target IN ITEMS roc::hipsolver)",
-    )
-    start = text.find("# Create imported target roc::hipsolver_fortran")
-    end = text.find("# Create imported target roc::hipsolver\n", start + 1)
-    if start == -1 or end == -1:
-        raise RuntimeError("hipsolver_fortran target block not found")
-    targets.write_text(text[:start] + text[end:])
-
-    text = release.read_text()
-    start = text.find("# Import target \"roc::hipsolver_fortran\"")
-    end = text.find("# Import target \"roc::hipsolver\"", start + 1)
-    if start == -1 or end == -1:
-        raise RuntimeError("hipsolver_fortran release block not found")
-    release.write_text(text[:start] + text[end:])
-PY
+# Uncomment the below if you encounter this problem:
+# RUN set -eux; \
+#     for path in bin include lib libexec share; do \
+#         if [ ! -e "/opt/rocm/${path}" ] && [ -e "/opt/rocm/core/${path}" ]; then \
+#             ln -s "core/${path}" "/opt/rocm/${path}"; \
+#         fi; \
+#     done; \
+#     if [ ! -e /opt/rocm/llvm ] && [ -e /opt/rocm/core/lib/llvm ]; then \
+#         ln -s core/lib/llvm /opt/rocm/llvm; \
+#     fi; \
+#     if [ ! -e /opt/rocm/amdgcn ] && [ -e /opt/rocm/core/lib/llvm/amdgcn ]; then \
+#         ln -s core/lib/llvm/amdgcn /opt/rocm/amdgcn; \
+#     fi; \
+#     for tool_path in /opt/rocm/core/lib/llvm/bin/*; do \
+#         tool="$(basename "${tool_path}")"; \
+#         if [ ! -e "/opt/rocm/core/bin/${tool}" ]; then \
+#             ln -s "../lib/llvm/bin/${tool}" "/opt/rocm/core/bin/${tool}"; \
+#         fi; \
+#     done
 
 # ROCm 7.12 package layout uses /opt/rocm/core/lib plus rocm_sysdeps.
 # AMD's post-install docs add these paths to LD_LIBRARY_PATH.
