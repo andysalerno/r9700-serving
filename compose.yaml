@@ -122,7 +122,7 @@ services:
   llamacpp-vulkan:
     image: ghcr.io/ggml-org/llama.cpp:server-vulkan
     container_name: llamacpp-qwen36-vulkan
-    profiles: ["vulkan"]
+    profiles: ["llamacpp-vulkan"]
     ports:
       - "8000:8080"
     networks:
