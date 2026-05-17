@@ -57,7 +57,9 @@ services:
       --max-model-len 128000
       --enable-prefix-caching
       --dtype auto
-      --attention-backend ROCM_ATTN
+      --block-size 16
+      --kv-cache-dtype auto
+      --attention-backend TRITON_ATTN
       -tp 2
       --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
       --max-num-seqs 4
