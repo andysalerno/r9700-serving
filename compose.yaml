@@ -117,7 +117,7 @@ services:
       LLAMA_ARG_PRESENCE_PENALTY: "0.0"
       LLAMA_ARG_REPEAT_PENALTY: "1.0"
     command: >
-      --spec-type draft-mtp --spec-draft-n-max 2
+      --spec-type draft-mtp --spec-draft-n-max 3
 
   llamacpp-vulkan:
     image: ghcr.io/ggml-org/llama.cpp:server-vulkan
