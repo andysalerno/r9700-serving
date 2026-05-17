@@ -106,7 +106,7 @@ services:
       # NCCL_PROTO: "Simple"
       # NCCL_P2P_DISABLE: "1"
       # NCCL_SHM_DISABLE: "0"
-      # VLLM_ROCM_USE_AITER: "1"
+      VLLM_ROCM_USE_AITER: "1"
     command: >
       vllm serve
       Qwen/Qwen3.6-27B-FP8
