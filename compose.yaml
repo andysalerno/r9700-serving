@@ -23,6 +23,10 @@ services:
     ipc: host
     ports:
       - "8000:8000"
+    networks:
+      default:
+        aliases:
+          - llm-backend
     volumes:
       - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
       - ./chat-templates/:/app/chat-templates:Z
@@ -73,10 +77,11 @@ services:
     container_name: llamacpp-qwen36-rocm
     profiles: ["llamacpp-rocm"]
     ports:
-      - "8000:8080"
+      - "8000:8000"
     networks:
       default:
         aliases:
+          - llm-backend
           - llamacpp
     devices:
       - /dev/kfd:/dev/kfd
@@ -124,10 +129,11 @@ services:
     container_name: llamacpp-qwen36-vulkan
     profiles: ["llamacpp-vulkan"]
     ports:
-      - "8000:8080"
+      - "8000:8000"
     networks:
       default:
         aliases:
+          - llm-backend
           - llamacpp
     devices:
       - /dev/kfd:/dev/kfd
@@ -179,9 +185,7 @@ services:
     ports:
       - "8001:3000"
     environment:
-      # OPENAI_BASE_URL: "http://vllm-qwen36-r9700:8000/v1"
-      OPENAI_BASE_URL: "http://llamacpp-qwen36-rocm:8000/v1"
-      # OPENAI_BASE_URL: "http://llamacpp-qwen36-vulkan:8000/v1"
+      OPENAI_BASE_URL: "http://llm-backend:8000/v1"
       OPENAI_API_KEY: "sk-empty"
       COOKIE_SECURE: "false"
       PUBLIC_ORIGIN: "http://hirose.local:8001"
