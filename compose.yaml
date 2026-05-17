@@ -63,7 +63,7 @@ services:
       --enable-prefix-caching
       --dtype auto
       --block-size 16
-      --kv-cache-dtype auto
+      --kv-cache-dtype fp8
       --attention-backend TRITON_ATTN
       -tp 2
       --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
