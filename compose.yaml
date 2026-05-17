@@ -1,7 +1,8 @@
 services:
   vllm-qwen36-r9700:
-    image: docker.io/vllm/vllm-openai-rocm:v0.21.0
-    # image: docker.io/vllm/vllm-openai-rocm:nightly
+    # image: docker.io/vllm/vllm-openai-rocm:v0.21.0
+    # image: localhost/vllm-rocm-wheel:gfx120x
+    image: docker.io/vllm/vllm-openai-rocm:nightly
     container_name: vllm-qwen36-r9700
     devices:
       - /dev/kfd:/dev/kfd
@@ -13,7 +14,7 @@ services:
       # - "482" # video: /dev/dri/card*
       # - "485" # render: /dev/kfd and /dev/dri/renderD*
       - "video"
-      - "render"
+      # - "render"
     cap_add:
       - SYS_PTRACE
     security_opt:
@@ -44,6 +45,7 @@ services:
       # Qwen/Qwen3.6-35B-A3B-FP8
       # --served-model-name qwen3.6-35b-a3b-fp8
       # --speculative-config '{"method": "mtp", "num_speculative_tokens": 2}'
+      # --speculative-config '{"method": "ngram", "num_speculative_tokens": 4, "prompt_lookup_min": 2, "prompt_lookup_max": 5}'
     command: >
       Qwen/Qwen3.6-27B-FP8
       --tokenizer Qwen/Qwen3.6-27B
@@ -60,4 +62,3 @@ services:
       --gpu-memory-utilization 0.93
       --host 0.0.0.0
       --port 8000
-      --speculative-config '{"method": "ngram", "num_speculative_tokens": 4, "prompt_lookup_min": 2, "prompt_lookup_max": 5}'
