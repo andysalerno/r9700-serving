@@ -58,9 +58,10 @@ RUN set -eux; \
 RUN set -eux; \
     vllm_spec="vllm${VLLM_VERSION:+==${VLLM_VERSION}}"; \
     python -m pip install --extra-index-url "${VLLM_EXTRA_INDEX_URL}" "${vllm_spec}"; \
+    python -m pip install --no-deps --no-build-isolation torch-c-dlpack-ext; \
     site_packages="$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"; \
     rm -rf "${site_packages}"/amdsmi "${site_packages}"/amdsmi-*.dist-info; \
-    echo "vLLM installed; keeping its pinned ROCm torch stack"
+    echo "vLLM and torch-c-dlpack-ext installed; keeping the pinned ROCm torch stack"
 
 RUN set -eux; \
     site_packages="$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"; \

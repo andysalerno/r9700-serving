@@ -3,8 +3,7 @@ services:
     profiles: ["vllm-rocm"]
     # image: localhost/vllm-rocm-wheel:gfx120x
     # image: docker.io/vllm/vllm-openai-rocm:nightly
-    image: docker.io/rocm/vllm-dev:nightly
-    # image: docker.io/rocm/vllm:rocm7.13.0_gfx120X-all_ubuntu24.04_py3.13_pytorch_2.10.0_vllm_0.19.1
+    image: docker.io/rocm/vllm:rocm7.13.0_gfx120X-all_ubuntu24.04_py3.13_pytorch_2.10.0_vllm_0.19.1
     container_name: vllm-qwen36-r9700
     devices:
       - /dev/kfd:/dev/kfd
