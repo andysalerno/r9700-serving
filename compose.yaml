@@ -102,27 +102,14 @@ services:
 
       LLAMA_ARG_HF_REPO: "unsloth/Qwen3.6-27B-GGUF:Q8_0"
 
-      # Rough equivalents to your vLLM serving config
       LLAMA_ARG_CTX_SIZE: "128000"
-      # LLAMA_ARG_N_PARALLEL: "4"
-      # LLAMA_ARG_CONT_BATCHING: "1"
-      # LLAMA_ARG_BATCH: "2048"
-      # LLAMA_ARG_UBATCH: "512"
-      # LLAMA_ARG_CACHE_PROMPT: "1"
-      # LLAMA_ARG_ENDPOINT_METRICS: "1"
-      # LLAMA_ARG_ENDPOINT_SLOTS: "1"
 
       # GPU/offload
       HIP_VISIBLE_DEVICES: "0,1"
       ROCR_VISIBLE_DEVICES: "0,1"
       CUDA_VISIBLE_DEVICES: "0,1"
-      # LLAMA_ARG_DEVICE: "0,1"
-      # LLAMA_ARG_N_GPU_LAYERS: "all"
-      # LLAMA_ARG_SPLIT_MODE: "layer"
-      # LLAMA_ARG_TENSOR_SPLIT: "1,1"
-      # LLAMA_ARG_FLASH_ATTN: "auto"
+      LLAMA_ARG_TENSOR_SPLIT: "1,1"
 
-      # Sampling defaults close to your vLLM override
       LLAMA_ARG_TEMPERATURE: "1.0"
       LLAMA_ARG_TOP_P: "0.95"
       LLAMA_ARG_TOP_K: "20"
