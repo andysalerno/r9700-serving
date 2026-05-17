@@ -39,7 +39,7 @@ services:
       NCCL_P2P_DISABLE: "1"
       NCCL_SHM_DISABLE: "0"
       VLLM_ROCM_USE_AITER: "0"
-      GPU_ARCHS: "gfx1100"
+      GPU_ARCHS: "gfx1201"
       # FLASH_ATTENTION_TRITON_AMD_ENABLE: "TRUE"
       # TRITON_CACHE_DIR: "/root/.cache/triton"
       # TORCHINDUCTOR_CACHE_DIR: "/root/.cache/torch/inductor"
