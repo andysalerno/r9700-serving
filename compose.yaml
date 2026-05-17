@@ -119,6 +119,58 @@ services:
     command: >
       --spec-type draft-mtp --spec-draft-n-max 2
 
+  llamacpp-vulkan:
+    image: ghcr.io/ggml-org/llama.cpp:server-vulkan
+    container_name: llamacpp-qwen36-vulkan
+    profiles: ["vulkan"]
+    ports:
+      - "8000:8080"
+    networks:
+      default:
+        aliases:
+          - llamacpp
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - "video"
+      # On your host this may be needed too; use numeric GID if Podman Compose dislikes names.
+      # - "render"
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - label=disable
+    ipc: host
+    volumes:
+      - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
+      - ${HOME}/.cache/llama.cpp:/root/.cache/llama.cpp:Z
+    environment:
+      LLAMA_ARG_HOST: "0.0.0.0"
+      LLAMA_ARG_PORT: "8000"
+      LLAMA_API_KEY: "sk-empty"
+      LLAMA_ARG_ALIAS: "qwen3.6-27b-gguf"
+      LLAMA_ARG_UI: "false"
+
+      # LLAMA_ARG_HF_REPO: "unsloth/Qwen3.6-27B-MTP-GGUF:Q8_0"
+      LLAMA_ARG_HF_REPO: "unsloth/Qwen3.6-27B-GGUF:Q8_0"
+
+      LLAMA_ARG_CTX_SIZE: "128000"
+
+      # GPU/offload
+      HIP_VISIBLE_DEVICES: "0,1"
+      ROCR_VISIBLE_DEVICES: "0,1"
+      CUDA_VISIBLE_DEVICES: "0,1"
+      LLAMA_ARG_TENSOR_SPLIT: "1,1"
+
+      LLAMA_ARG_TEMPERATURE: "1.0"
+      LLAMA_ARG_TOP_P: "0.95"
+      LLAMA_ARG_TOP_K: "20"
+      LLAMA_ARG_MIN_P: "0.0"
+      LLAMA_ARG_PRESENCE_PENALTY: "0.0"
+      LLAMA_ARG_REPEAT_PENALTY: "1.0"
+    # command: >
+    #   --spec-type draft-mtp --spec-draft-n-max 2
+
   chatui:
     # depends_on:
     #   - vllm-qwen36-r9700
