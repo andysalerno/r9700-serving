@@ -100,7 +100,7 @@ services:
       LLAMA_ARG_ALIAS: "qwen3.6-27b-gguf"
       LLAMA_ARG_UI: "false"
 
-      LLAMA_ARG_HF_REPO: "unsloth/Qwen3.6-27B-GGUF:Q8_0"
+      LLAMA_ARG_HF_REPO: "unsloth/Qwen3.6-27B-MTP-GGUF:Q8_0"
 
       LLAMA_ARG_CTX_SIZE: "128000"
 
@@ -116,6 +116,8 @@ services:
       LLAMA_ARG_MIN_P: "0.0"
       LLAMA_ARG_PRESENCE_PENALTY: "0.0"
       LLAMA_ARG_REPEAT_PENALTY: "1.0"
+    command: >
+      --spec-type draft-mtp --spec-draft-n-max 2
 
   chatui:
     # depends_on:
