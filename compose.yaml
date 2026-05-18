@@ -77,7 +77,10 @@ services:
       dockerfile: docker/Dockerfile.wheel.v2
       args:
         GFX_TARGET: gfx120X-all
+        GFX_ARCH: gfx1201
         PYTHON: python3.12
+        VLLM_WHEEL_URL: https://wheels.vllm.ai/rocm
+        VLLM_VERSION: 0.21.0+rocm722
     container_name: vllm-wheel-v2-qwen36-r9700
     devices:
       - /dev/kfd:/dev/kfd
@@ -113,12 +116,18 @@ services:
       HIP_VISIBLE_DEVICES: "0,1"
       ROCR_VISIBLE_DEVICES: "0,1"
       CUDA_VISIBLE_DEVICES: "0,1"
+      HIP_PLATFORM: "amd"
+      VLLM_TARGET_DEVICE: "rocm"
+      VLLM_ROCM_GCN_ARCH: "gfx1201"
+      PYTORCH_ROCM_ARCH: "gfx1201"
+      HIP_ARCHITECTURES: "gfx1201"
+      AMDGPU_TARGETS: "gfx1201"
+      GPU_ARCHS: "gfx1201"
       # NCCL_SOCKET_IFNAME: "lo"
       # NCCL_PROTO: "Simple"
       # NCCL_P2P_DISABLE: "1"
       # NCCL_SHM_DISABLE: "0"
       # VLLM_ROCM_USE_AITER: "0"
-      # GPU_ARCHS: "gfx1201"
       # FLASH_ATTENTION_TRITON_AMD_ENABLE: "TRUE"
       # TRITON_CACHE_DIR: "/root/.cache/triton"
       # TORCHINDUCTOR_CACHE_DIR: "/root/.cache/torch/inductor"

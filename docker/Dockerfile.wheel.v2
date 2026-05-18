@@ -1,7 +1,10 @@
 FROM ubuntu:24.04
 
 ARG GFX_TARGET=gfx120X-all
+ARG GFX_ARCH=gfx1201
 ARG PYTHON=python3.12
+ARG VLLM_WHEEL_URL=https://wheels.vllm.ai/rocm
+ARG VLLM_VERSION=0.21.0+rocm722
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV VIRTUAL_ENV=/opt/vllm
@@ -9,35 +12,54 @@ ENV PATH=/opt/vllm/bin:$PATH
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3.12 python3.12-dev python3.12-venv \
-    libatomic1 libdrm2 libdrm-amdgpu1 libelf1 libgfortran5 libgomp1 libnuma1 \
+    libatomic1 libdrm2 libdrm-amdgpu1 libelf1 libgfortran5 libgomp1 \
+    libjpeg-turbo8 libnuma1 libopenmpi3t64 \
     git curl ca-certificates gcc g++ \
     && rm -rf /var/lib/apt/lists/*
 
 RUN python3.12 -m venv /opt/vllm \
     && python -m pip install --upgrade pip setuptools wheel uv
 
-# Install AMD's ROCm PyTorch stack for RDNA4/gfx120X.
+# Install vLLM's ROCm wheel and the exact ROCm stack it was built against.
 RUN uv pip install \
-    --index-url https://repo.amd.com/rocm/whl/${GFX_TARGET}/ \
-    torch torchvision torchaudio triton
+    --find-links ${VLLM_WHEEL_URL}/vllm/ \
+    --find-links ${VLLM_WHEEL_URL}/torch/ \
+    --find-links ${VLLM_WHEEL_URL}/torchvision/ \
+    --find-links ${VLLM_WHEEL_URL}/torchaudio/ \
+    --find-links ${VLLM_WHEEL_URL}/triton/ \
+    --find-links ${VLLM_WHEEL_URL}/triton-kernels/ \
+    --find-links ${VLLM_WHEEL_URL}/amdsmi/ \
+    --find-links ${VLLM_WHEEL_URL}/amd-aiter/ \
+    --find-links ${VLLM_WHEEL_URL}/flash-attn/ \
+    vllm==${VLLM_VERSION} \
+    && uv pip install --no-deps torch-c-dlpack-ext
 
-# Install vLLM ROCm wheel.
-RUN uv pip install \
-    --extra-index-url https://wheels.vllm.ai/rocm/ \
-    vllm
-
-# Re-pin AMD PyTorch stack after vLLM resolution, to avoid accidentally ending up
-# with a mismatched torch/triton dependency set.
-RUN uv pip install --force-reinstall --no-deps \
+# The vLLM ROCm torch wheel expects ROCm userspace libraries at runtime; install
+# AMD's pip-packaged SDK libraries without letting them replace torch/vLLM.
+RUN uv pip install --no-deps \
     --index-url https://repo.amd.com/rocm/whl/${GFX_TARGET}/ \
-    torch torchvision torchaudio triton
+    rocm-sdk-core rocm-sdk-libraries-gfx120X-all
+
+RUN python -c 'from pathlib import Path; path = Path("/opt/vllm/lib/python3.12/site-packages/vllm/platforms/rocm.py"); text = path.read_text(); old = "\n".join(["def _get_gcn_arch() -> str:", "    \"\"\"", "    Get GCN arch via amdsmi (no CUDA init), fallback to torch.cuda.", "    Called once at module level; result stored in _GCN_ARCH.", "    \"\"\"", "    try:", "        return _query_gcn_arch_from_amdsmi()", "    except Exception as e:", "        logger.debug(\"Failed to get GCN arch via amdsmi: %s\", e)", "        logger.warning_once(", "            \"Failed to get GCN arch via amdsmi, falling back to torch.cuda. \"", "            \"This will initialize CUDA and may cause \"", "            \"issues if CUDA_VISIBLE_DEVICES is not set yet.\"", "        )", "    # Ultimate fallback: use torch.cuda (will initialize CUDA)", "    return torch.cuda.get_device_properties(\"cuda\").gcnArchName", ""]); new = "\n".join(["def _get_gcn_arch() -> str:", "    \"\"\"", "    Get GCN arch via amdsmi (no CUDA init), fallback to env/torch.cuda.", "    Called once at module level; result stored in _GCN_ARCH.", "    \"\"\"", "    try:", "        return _query_gcn_arch_from_amdsmi()", "    except Exception as e:", "        logger.debug(\"Failed to get GCN arch via amdsmi: %s\", e)", "        env_arch = (", "            os.environ.get(\"VLLM_ROCM_GCN_ARCH\")", "            or os.environ.get(\"PYTORCH_ROCM_ARCH\")", "            or os.environ.get(\"GPU_ARCHS\")", "            or os.environ.get(\"AMDGPU_TARGETS\")", "            or os.environ.get(\"HIP_ARCHITECTURES\")", "        )", "        if env_arch:", "            return env_arch.split(\",\")[0].strip()", "        logger.warning_once(", "            \"Failed to get GCN arch via amdsmi, falling back to torch.cuda. \"", "            \"This will initialize CUDA and may cause \"", "            \"issues if CUDA_VISIBLE_DEVICES is not set yet.\"", "        )", "    # Ultimate fallback: use torch.cuda (will initialize CUDA)", "    return torch.cuda.get_device_properties(\"cuda\").gcnArchName", ""]); (old in text) or (_ for _ in ()).throw(SystemExit("Could not find vLLM ROCm _get_gcn_arch block to patch")); path.write_text(text.replace(old, new, 1)); print("Patched vLLM ROCm GCN arch fallback")'
 
 # Let bundled ROCm libraries be found at runtime.
 ENV SP=/opt/vllm/lib/python3.12/site-packages
-ENV LD_LIBRARY_PATH=${SP}/torch/lib:${SP}/_rocm_sdk_core/lib:${SP}/_rocm_sdk_core/lib/llvm/lib:${SP}/_rocm_sdk_libraries_gfx120x_all/lib:${LD_LIBRARY_PATH}
+ENV ROCM_PATH=${SP}/_rocm_sdk_core
+ENV HIP_PATH=${SP}/_rocm_sdk_core
+ENV PYTHONPATH=${SP}/_rocm_sdk_core/share/amd_smi
+ENV LD_LIBRARY_PATH=${SP}/torch/lib:${SP}/_rocm_sdk_core/lib:${SP}/_rocm_sdk_core/lib/llvm/lib:${SP}/_rocm_sdk_core/lib/rocm_sysdeps/lib:${SP}/_rocm_sdk_core/lib/host-math/lib:${SP}/_rocm_sdk_libraries_gfx120X_all/lib:${LD_LIBRARY_PATH}
 
-ENV FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
-ENV SAFETENSORS_FAST_GPU=1
-ENV TOKENIZERS_PARALLELISM=false
+ENV HIP_PLATFORM=amd \
+    VLLM_TARGET_DEVICE=rocm \
+    FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE \
+    VLLM_ROCM_GCN_ARCH=${GFX_ARCH} \
+    PYTORCH_ROCM_ARCH=${GFX_ARCH} \
+    HIP_ARCHITECTURES=${GFX_ARCH} \
+    AMDGPU_TARGETS=${GFX_ARCH} \
+    GPU_ARCHS=${GFX_ARCH} \
+    SAFETENSORS_FAST_GPU=1 \
+    TOKENIZERS_PARALLELISM=false
+
+RUN python -c 'import torch, vllm, vllm._C, vllm._rocm_C; print(f"PyTorch {torch.__version__}"); print(f"ROCm built-in: {torch.version.hip is not None}"); print(f"vLLM {vllm.__version__}"); print("vLLM ROCm native extensions OK")'
 
 ENTRYPOINT ["vllm", "serve"]
