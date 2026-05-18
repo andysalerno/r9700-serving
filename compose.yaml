@@ -138,6 +138,7 @@ services:
       --served-model-name qwen3.6-27b
       --chat-template /app/chat-templates/qwen36.jinja
       --limit-mm-per-prompt '{"image": 0, "audio": 0, "video": 0}'
+      --speculative-config '{"method": "mtp", "num_speculative_tokens": 2}'
       --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3
       --max-model-len 128000
       --enable-prefix-caching
