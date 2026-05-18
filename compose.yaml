@@ -8,13 +8,7 @@ services:
       - /dev/kfd:/dev/kfd
       - /dev/dri:/dev/dri
     group_add:
-      # Host ROCm device groups; Docker Compose via Podman treats keep-groups
-      # as a literal image group, so use numeric GIDs for portability here.
-      # - keep-groups
-      # - "482" # video: /dev/dri/card*
-      # - "485" # render: /dev/kfd and /dev/dri/renderD*
       - "video"
-      # - "render"
     cap_add:
       - SYS_PTRACE
     security_opt:
@@ -87,13 +81,7 @@ services:
       - /dev/kfd:/dev/kfd
       - /dev/dri:/dev/dri
     group_add:
-      # Host ROCm device groups; Docker Compose via Podman treats keep-groups
-      # as a literal image group, so use numeric GIDs for portability here.
-      # - keep-groups
-      # - "482" # video: /dev/dri/card*
-      # - "485" # render: /dev/kfd and /dev/dri/renderD*
       - "video"
-      # - "render"
     cap_add:
       - SYS_PTRACE
     security_opt:
@@ -227,8 +215,6 @@ services:
       - /dev/dri:/dev/dri
     group_add:
       - "video"
-      # On your host this may be needed too; use numeric GID if Podman Compose dislikes names.
-      # - "render"
     cap_add:
       - SYS_PTRACE
     security_opt:
@@ -279,8 +265,7 @@ services:
       - /dev/dri:/dev/dri
     group_add:
       - "video"
-      # On your host this may be needed too; use numeric GID if Podman Compose dislikes names.
-      # - "render"
+      - "render"
     cap_add:
       - SYS_PTRACE
     security_opt:
@@ -317,8 +302,6 @@ services:
     #   --spec-type draft-mtp --spec-draft-n-max 2
 
   chatui:
-    # depends_on:
-    #   - vllm-qwen36-r9700
     image: ghcr.io/huggingface/chat-ui-db:latest
     container_name: chatui
     ports:
