@@ -1,7 +1,6 @@
 services:
   vllm-qwen36-r9700:
     profiles: ["vllm-rocm"]
-    # image: localhost/vllm-rocm-wheel:gfx120x
     image: docker.io/vllm/vllm-openai-rocm:nightly
     container_name: vllm-qwen36-r9700
     devices:
@@ -9,6 +8,7 @@ services:
       - /dev/dri:/dev/dri
     group_add:
       - "video"
+      - "render"
     cap_add:
       - SYS_PTRACE
     security_opt:
@@ -64,7 +64,7 @@ services:
       --host 0.0.0.0
       --port 8000
   vllm-wheel-v2-qwen36-r9700:
-    profiles: ["vllm-rocm-wheel-v2"]
+    profiles: ["vllm-rocm-wheel"]
     image: localhost/vllm-rocm-wheel
     build:
       context: .
@@ -82,6 +82,7 @@ services:
       - /dev/dri:/dev/dri
     group_add:
       - "video"
+      - "render"
     cap_add:
       - SYS_PTRACE
     security_opt:
@@ -154,6 +155,7 @@ services:
       - /dev/dri:/dev/dri
     group_add:
       - "video"
+      - "render"
     cap_add:
       - SYS_PTRACE
     security_opt:
@@ -215,6 +217,7 @@ services:
       - /dev/dri:/dev/dri
     group_add:
       - "video"
+      - "render"
     cap_add:
       - SYS_PTRACE
     security_opt:
