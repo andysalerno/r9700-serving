@@ -65,10 +65,10 @@ services:
       --port 8000
   vllm-wheel-v2-qwen36-r9700:
     profiles: ["vllm-rocm-wheel-v2"]
-    image: localhost/vllm-rocm-wheel:v2
+    image: localhost/vllm-rocm-wheel
     build:
       context: .
-      dockerfile: docker/Dockerfile.wheel.v2
+      dockerfile: docker/Dockerfile.wheel
       args:
         GFX_TARGET: gfx120X-all
         GFX_ARCH: gfx1201
