@@ -1,0 +1,42 @@
+FROM ubuntu:24.04
+
+ARG GFX_TARGET=gfx120X-all
+ARG PYTHON=python3.12
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV VIRTUAL_ENV=/opt/vllm
+ENV PATH=/opt/vllm/bin:$PATH
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 python3.12-dev python3.12-venv \
+    git curl ca-certificates gcc g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python3.12 -m venv /opt/vllm \
+    && python -m pip install --upgrade pip setuptools wheel uv
+
+# Install AMD's ROCm PyTorch stack for RDNA4/gfx120X.
+RUN uv pip install \
+    --index-url https://repo.amd.com/rocm/whl/${GFX_TARGET}/ \
+    torch torchvision torchaudio triton
+
+# Install vLLM ROCm wheel.
+RUN uv pip install \
+    --extra-index-url https://wheels.vllm.ai/rocm/ \
+    vllm
+
+# Re-pin AMD PyTorch stack after vLLM resolution, to avoid accidentally ending up
+# with a mismatched torch/triton dependency set.
+RUN uv pip install --force-reinstall --no-deps \
+    --index-url https://repo.amd.com/rocm/whl/${GFX_TARGET}/ \
+    torch torchvision torchaudio triton
+
+# Let bundled ROCm libraries be found at runtime.
+ENV SP=/opt/vllm/lib/python3.12/site-packages
+ENV LD_LIBRARY_PATH=${SP}/torch/lib:${SP}/_rocm_sdk_core/lib:${SP}/_rocm_sdk_core/lib/llvm/lib:${SP}/_rocm_sdk_libraries_gfx120x_all/lib:${LD_LIBRARY_PATH}
+
+ENV FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
+ENV SAFETENSORS_FAST_GPU=1
+ENV TOKENIZERS_PARALLELISM=false
+
+ENTRYPOINT ["vllm", "serve"]
