@@ -127,11 +127,9 @@ services:
       # --speculative-config '{"method": "mtp", "num_speculative_tokens": 2}'
       # --speculative-config '{"method": "ngram", "num_speculative_tokens": 4, "prompt_lookup_min": 2, "prompt_lookup_max": 5}'
       # Qwen/Qwen3.6-27B-FP8
-      # --kv-cache-dtype fp8
       # btbtyler09/Qwen3.6-27B-GPTQ-8bit
       # raydelossantos/Qwen3.6-27B-GPTQ-Int4
       # QuantTrio/Qwen3.6-27B-AWQ
-      # --max-num-seqs 4
       # --speculative-config '{"method": "mtp", "num_speculative_tokens": 2}'
     command: >
       Qwen/Qwen3.6-27B-FP8
@@ -143,6 +141,8 @@ services:
       --max-model-len 128000
       --enable-prefix-caching
       --dtype auto
+      --max-num-seqs 4
+      --kv-cache-dtype fp8
       -tp 2
       --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
       --gpu-memory-utilization 0.93
