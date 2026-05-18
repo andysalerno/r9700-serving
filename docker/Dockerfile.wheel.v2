@@ -60,6 +60,6 @@ ENV HIP_PLATFORM=amd \
     SAFETENSORS_FAST_GPU=1 \
     TOKENIZERS_PARALLELISM=false
 
-RUN python -c 'import torch, vllm, vllm._C, vllm._rocm_C; print(f"PyTorch {torch.__version__}"); print(f"ROCm built-in: {torch.version.hip is not None}"); print(f"vLLM {vllm.__version__}"); print("vLLM ROCm native extensions OK")'
+RUN python -c 'import importlib.metadata as md, torch, vllm, vllm._C, vllm._rocm_C, flash_attn; print(f"PyTorch {torch.__version__}"); print(f"ROCm built-in: {torch.version.hip is not None}"); print(f"vLLM {vllm.__version__}"); print("flash-attn", md.version("flash-attn")); print("vLLM ROCm native extensions OK")'
 
 ENTRYPOINT ["vllm", "serve"]
