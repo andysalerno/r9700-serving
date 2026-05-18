@@ -5,6 +5,7 @@ ARG GFX_ARCH=gfx1201
 ARG PYTHON=python3.12
 ARG VLLM_WHEEL_URL=https://wheels.vllm.ai/rocm
 ARG VLLM_VERSION=0.21.0+rocm722
+ARG FLASH_ATTN_VERSION=2.8.3
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV VIRTUAL_ENV=/opt/vllm
@@ -31,7 +32,7 @@ RUN uv pip install \
     --find-links ${VLLM_WHEEL_URL}/amdsmi/ \
     --find-links ${VLLM_WHEEL_URL}/amd-aiter/ \
     --find-links ${VLLM_WHEEL_URL}/flash-attn/ \
-    vllm==${VLLM_VERSION} \
+    vllm==${VLLM_VERSION} flash-attn==${FLASH_ATTN_VERSION} \
     && uv pip install --no-deps torch-c-dlpack-ext
 
 # The vLLM ROCm torch wheel expects ROCm userspace libraries at runtime; install

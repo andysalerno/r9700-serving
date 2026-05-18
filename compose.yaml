@@ -81,6 +81,7 @@ services:
         PYTHON: python3.12
         VLLM_WHEEL_URL: https://wheels.vllm.ai/rocm
         VLLM_VERSION: 0.21.0+rocm722
+        FLASH_ATTN_VERSION: 2.8.3
     container_name: vllm-wheel-v2-qwen36-r9700
     devices:
       - /dev/kfd:/dev/kfd
