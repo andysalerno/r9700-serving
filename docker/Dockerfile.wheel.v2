@@ -9,6 +9,7 @@ ENV PATH=/opt/vllm/bin:$PATH
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3.12 python3.12-dev python3.12-venv \
+    libatomic1 libdrm2 libdrm-amdgpu1 libelf1 libgfortran5 libgomp1 libnuma1 \
     git curl ca-certificates gcc g++ \
     && rm -rf /var/lib/apt/lists/*
 
