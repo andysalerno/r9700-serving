@@ -354,7 +354,7 @@ services:
     image: arizephoenix/phoenix:latest
     container_name: phoenix
     ports:
-      - "6006:6006"
+      - "8002:6006"
       - "4317:4317"
 volumes:
   chat-ui-data:
