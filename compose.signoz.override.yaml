@@ -1,0 +1,9 @@
+services:
+  signoz:
+    ports:
+      - "8002:8080"
+
+  otel-collector:
+    ports:
+      - "4317:4317"
+      - "4318:4318"
