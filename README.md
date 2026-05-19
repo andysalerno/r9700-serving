@@ -110,7 +110,7 @@ The Qwen script uses two visible GPUs, `NCCL_PROTO=Simple`, `NCCL_P2P_DISABLE=1`
 ## Debug Logs
 
 ```bash
-podman logs vllm-qwen36-r9700 2>&1 | grep -Ei 'aiter|attention backend|rocm|triton|flash|nccl|rccl'
+podman logs vllm-rocm-wheel-nightly 2>&1 | grep -Ei 'aiter|attention backend|rocm|triton|flash|nccl|rccl'
 ```
 
 If AITER attention fails, first keep AITER enabled but disable AITER attention:

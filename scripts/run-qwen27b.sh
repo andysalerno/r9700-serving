@@ -7,7 +7,7 @@ SERVED_MODEL_NAME="${SERVED_MODEL_NAME:-qwen3.6-27b-fp8}"
 PODMAN="${PODMAN:-podman}"
 
 "${PODMAN}" run --rm -it \
-  --name vllm-qwen36-r9700 \
+  --name vllm-rocm-wheel-nightly \
   --device=/dev/kfd \
   --device=/dev/dri \
   --group-add keep-groups \
