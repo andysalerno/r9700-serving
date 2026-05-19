@@ -23,7 +23,7 @@ services:
       - /dev/dri:/dev/dri
     group_add:
       - "video"
-      - "render"
+      # - "render"
     cap_add:
       - SYS_PTRACE
     security_opt:
@@ -59,10 +59,11 @@ services:
       # NCCL_P2P_DISABLE: "1"
       # NCCL_SHM_DISABLE: "0"
       # VLLM_ROCM_USE_AITER: "1"
+      # VLLM_ROCM_SHUFFLE_KV_CACHE_LAYOUT: "0"
       FLASH_ATTENTION_TRITON_AMD_ENABLE: "TRUE"
       # FLASH_ATTENTION_TRITON_AMD_AUTOTUNE: "TRUE"
       # VLLM_LOGGING_LEVEL: DEBUG
-      OTEL_SERVICE_NAME: "vllm-rocm-wheel-nightly"
+      OTEL_SERVICE_NAME: "vllm-rocm-wheel"
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: "http/protobuf"
       OTEL_EXPORTER_OTLP_TRACES_INSECURE: "true"
       OTEL_RESOURCE_ATTRIBUTES: "service.namespace=llmhost,deployment.environment=local,host.name=hirose"
@@ -81,6 +82,8 @@ services:
       -tp 2
       --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
       --gpu-memory-utilization 0.93
+
+      --attention-backend TRITON_ATTN
 
       --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
       --collect-detailed-traces=all
@@ -146,8 +149,9 @@ services:
       # NCCL_PROTO: "Simple"
       # NCCL_P2P_DISABLE: "1"
       # NCCL_SHM_DISABLE: "0"
-      # VLLM_ROCM_USE_AITER: "1"
-      FLASH_ATTENTION_TRITON_AMD_ENABLE: "TRUE"
+      VLLM_ROCM_USE_AITER: "1"
+      VLLM_ROCM_SHUFFLE_KV_CACHE_LAYOUT: "0"
+      # FLASH_ATTENTION_TRITON_AMD_ENABLE: "TRUE"
       # FLASH_ATTENTION_TRITON_AMD_AUTOTUNE: "TRUE"
       # VLLM_LOGGING_LEVEL: DEBUG
       OTEL_SERVICE_NAME: "vllm-rocm-wheel"
@@ -181,6 +185,8 @@ services:
       -tp 2
       --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
       --gpu-memory-utilization 0.93
+
+      --attention-backend ROCM_AITER_FA
 
       --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
       --collect-detailed-traces=all
