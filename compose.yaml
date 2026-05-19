@@ -32,12 +32,11 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - otel-collector
+      - aspire-dashboard
     networks:
       default:
         aliases:
           - llm-backend
-      signoz-net:
     volumes:
       - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
       - ./chat-templates/:/app/chat-templates:Z
@@ -80,7 +79,7 @@ services:
       -tp 2
       --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
       --gpu-memory-utilization 0.93
-      --otlp-traces-endpoint http://otel-collector:4318/v1/traces
+      --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
       --host 0.0.0.0
       --port 8000
   vllm-wheel-v2-qwen36-r9700:
@@ -114,12 +113,11 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - otel-collector
+      - aspire-dashboard
     networks:
       default:
         aliases:
           - llm-backend
-      signoz-net:
     volumes:
       - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
       - ./chat-templates/:/app/chat-templates:Z
@@ -173,7 +171,7 @@ services:
       -tp 2
       --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
       --gpu-memory-utilization 0.93
-      --otlp-traces-endpoint http://otel-collector:4318/v1/traces
+      --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
       --host 0.0.0.0
       --port 8000
 
@@ -292,10 +290,16 @@ services:
       PUBLIC_ORIGIN: "http://hirose.local:8001"
     volumes:
       - chat-ui-data:/data
+
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:latest
+    container_name: aspire-dashboard
+    ports:
+      - "8002:18888"
+      - "4317:18889"
+      - "4318:18890"
+    environment:
+      ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
+
 volumes:
   chat-ui-data:
-
-include:
-  - path:
-      - ${HOME}/repos/signoz/deploy/docker/docker-compose.yaml
-      - ./compose.signoz.override.yaml
