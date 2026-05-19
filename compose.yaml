@@ -64,6 +64,7 @@ services:
       # VLLM_LOGGING_LEVEL: DEBUG
       OTEL_SERVICE_NAME: "vllm-rocm-wheel-nightly"
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: "http/protobuf"
+      OTEL_EXPORTER_OTLP_TRACES_INSECURE: "true"
     command: >
       Qwen/Qwen3.6-27B-FP8
       --tokenizer Qwen/Qwen3.6-27B
@@ -150,6 +151,8 @@ services:
       # VLLM_LOGGING_LEVEL: DEBUG
       OTEL_SERVICE_NAME: "vllm-rocm-wheel"
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: "http/protobuf"
+      OTEL_EXPORTER_OTLP_TRACES_INSECURE: "true"
+
       # TRITON_CACHE_DIR: "/root/.cache/triton"
       # TORCHINDUCTOR_CACHE_DIR: "/root/.cache/torch/inductor"
       # Qwen/Qwen3.6-35B-A3B-FP8
