@@ -32,7 +32,7 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - phoenix
+      - jaeger
     networks:
       default:
         aliases:
@@ -61,7 +61,7 @@ services:
       # VLLM_ROCM_USE_AITER: "1"
       FLASH_ATTENTION_TRITON_AMD_ENABLE: "TRUE"
       # FLASH_ATTENTION_TRITON_AMD_AUTOTUNE: "TRUE"
-      VLLM_LOGGING_LEVEL: DEBUG
+      # VLLM_LOGGING_LEVEL: DEBUG
       OTEL_SERVICE_NAME: "vllm-qwen36-r9700"
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: "http/protobuf"
     command: >
@@ -79,7 +79,7 @@ services:
       -tp 2
       --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
       --gpu-memory-utilization 0.93
-      --otlp-traces-endpoint http://phoenix:6006/v1/traces
+      --otlp-traces-endpoint http://jaeger:4318/v1/traces
       --host 0.0.0.0
       --port 8000
   vllm-wheel-v2-qwen36-r9700:
@@ -113,7 +113,7 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - phoenix
+      - jaeger
     networks:
       default:
         aliases:
@@ -142,7 +142,7 @@ services:
       # VLLM_ROCM_USE_AITER: "1"
       FLASH_ATTENTION_TRITON_AMD_ENABLE: "TRUE"
       # FLASH_ATTENTION_TRITON_AMD_AUTOTUNE: "TRUE"
-      VLLM_LOGGING_LEVEL: DEBUG
+      # VLLM_LOGGING_LEVEL: DEBUG
       OTEL_SERVICE_NAME: "vllm-wheel-v2-qwen36-r9700"
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: "http/protobuf"
       # TRITON_CACHE_DIR: "/root/.cache/triton"
@@ -171,7 +171,7 @@ services:
       -tp 2
       --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
       --gpu-memory-utilization 0.93
-      --otlp-traces-endpoint http://phoenix:6006/v1/traces
+      --otlp-traces-endpoint http://jaeger:4318/v1/traces
       --host 0.0.0.0
       --port 8000
   rocm-vllm-nightly-qwen36-r9700:
@@ -193,7 +193,7 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - phoenix
+      - jaeger
     networks:
       default:
         aliases:
@@ -232,7 +232,7 @@ services:
       --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
       --max-num-seqs 4
       --gpu-memory-utilization 0.93
-      --otlp-traces-endpoint http://phoenix:6006/v1/traces
+      --otlp-traces-endpoint http://jaeger:4318/v1/traces
       --host 0.0.0.0
       --port 8000
   llamacpp-rocm:
@@ -350,11 +350,14 @@ services:
       PUBLIC_ORIGIN: "http://hirose.local:8001"
     volumes:
       - chat-ui-data:/data
-  phoenix:
-    image: arizephoenix/phoenix:latest
-    container_name: phoenix
+  jaeger:
+    image: jaegertracing/all-in-one:1.76.0
+    container_name: jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
     ports:
-      - "8002:6006"
+      - "8002:16686"
       - "4317:4317"
+      - "4318:4318"
 volumes:
   chat-ui-data:
