@@ -82,7 +82,7 @@ services:
       --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
       --host 0.0.0.0
       --port 8000
-  vllm-wheel-v2-qwen36-r9700:
+  vllm-rocm-wheel:
     profiles: ["vllm-rocm-wheel"]
     image: localhost/vllm-rocm-wheel
     build:
@@ -99,7 +99,7 @@ services:
         ROCM_SDK_CORE_VERSION: 7.13.0
         ROCM_SDK_LIBRARIES_VERSION: 7.13.0
         FLASH_ATTN_VERSION: 2.8.3
-    container_name: vllm-wheel-v2-qwen36-r9700
+    container_name: vllm-rocm-wheel
     devices:
       - /dev/kfd:/dev/kfd
       - /dev/dri:/dev/dri
@@ -143,7 +143,7 @@ services:
       FLASH_ATTENTION_TRITON_AMD_ENABLE: "TRUE"
       # FLASH_ATTENTION_TRITON_AMD_AUTOTUNE: "TRUE"
       # VLLM_LOGGING_LEVEL: DEBUG
-      OTEL_SERVICE_NAME: "vllm-wheel-v2-qwen36-r9700"
+      OTEL_SERVICE_NAME: "vllm-rocm-wheel"
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: "http/protobuf"
       # TRITON_CACHE_DIR: "/root/.cache/triton"
       # TORCHINDUCTOR_CACHE_DIR: "/root/.cache/torch/inductor"
