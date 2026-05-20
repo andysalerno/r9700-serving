@@ -313,6 +313,7 @@ services:
   aspire-dashboard:
     image: mcr.microsoft.com/dotnet/aspire-dashboard:latest
     container_name: aspire-dashboard
+    profiles: ["vllm-rocm-wheel", "vllm-rocm-wheel-nightly"]
     ports:
       - "8002:18888"
       - "4317:18889"
