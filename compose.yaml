@@ -1,4 +1,60 @@
 services:
+  atom:
+    profiles: ["atom"]
+    # image: docker.io/vllm/vllm-openai-rocm:nightly
+    image: docker.io/rocm/atom-dev:vllm-latest
+    container_name: atom-dev
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - "video"
+      # - "render"
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - label=disable
+    ipc: host
+    ports:
+      - "8000:8000"
+    networks:
+      default:
+        aliases:
+          - llm-backend
+    volumes:
+      - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
+      - ./chat-templates/:/app/chat-templates:Z
+
+    environment:
+      # https://rocm.docs.amd.com/en/latest/how-to/rocm-for-ai/inference-optimization/vllm-optimization.html
+      HIP_VISIBLE_DEVICES: "0,1"
+      ROCR_VISIBLE_DEVICES: "0,1"
+      CUDA_VISIBLE_DEVICES: "0,1"
+      HIP_PLATFORM: "amd"
+      VLLM_TARGET_DEVICE: "rocm"
+      VLLM_ROCM_GCN_ARCH: "gfx1201"
+      PYTORCH_ROCM_ARCH: "gfx1201"
+      HIP_ARCHITECTURES: "gfx1201"
+      AMDGPU_TARGETS: "gfx1201"
+      GPU_ARCHS: "gfx1201"
+      NCCL_SOCKET_IFNAME: "lo"
+      NCCL_PROTO: "Simple"
+      NCCL_P2P_DISABLE: "1"
+      NCCL_SHM_DISABLE: "0"
+    command: >
+      vllm serve Qwen/Qwen3.6-27B-FP8
+      --tokenizer Qwen/Qwen3.6-27B
+      --served-model-name qwen3.6-27b
+      --limit-mm-per-prompt '{"image": 0, "audio": 0, "video": 0}'
+      --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3
+      --max-model-len 128000
+      --enable-prefix-caching
+      --max-num-seqs 4
+      -tp 2
+      --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
+      --gpu-memory-utilization 0.93
+      --host 0.0.0.0
+      --port 8000
   vllm-rocm-wheel-nightly:
     profiles: ["vllm-rocm-wheel-nightly"]
     # image: docker.io/vllm/vllm-openai-rocm:nightly
@@ -11,7 +67,7 @@ services:
         GFX_ARCH: gfx1201
         PYTHON: python3.12
         VLLM_WHEEL_URL: https://wheels.vllm.ai/rocm/nightly/rocm722
-        VLLM_VERSION: 0.21.1rc1.dev124+gbe1678599.rocm722
+        VLLM_VERSION: 0.21.1rc1.dev170+g905b97adf.rocm722
         ROCM_SDK_CORE_VERSION: 7.13.0
         ROCM_SDK_LIBRARIES_VERSION: 7.13.0
         FLASH_ATTN_VERSION: 2.8.3
@@ -70,7 +126,7 @@ services:
       --tokenizer Qwen/Qwen3.6-27B
       --served-model-name qwen3.6-27b
       --chat-template /app/chat-templates/qwen36.jinja
-      --limit-mm-per-prompt '{"image": 0, "audio": 0, "video": 0}'
+      --limit-mm-per-prompt '{"image": 99, "audio": 0, "video": 0}'
       --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3
       --max-model-len 128000
       --enable-prefix-caching
@@ -79,14 +135,13 @@ services:
       --kv-cache-dtype fp8
       -tp 2
       --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
+      --speculative-config '{"method": "mtp", "num_speculative_tokens": 2}'
       --gpu-memory-utilization 0.93
 
       --attention-backend TRITON_ATTN
 
       --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
       --collect-detailed-traces=all
-      --enable-log-requests
-      --enable-logging-iteration-details
 
       --host 0.0.0.0
       --port 8000
@@ -193,6 +248,65 @@ services:
 
       --host 0.0.0.0
       --port 8000
+
+  vllm-qwen36-27b-fp8-aml731:
+    image: aml731/vllm-aiter:v0.20.2
+    profiles: ["vllm-aml"]
+    container_name: vllm-qwen36-27b-fp8-aml731
+    group_add:
+      - video
+    ports:
+      - "8000:8000"
+    ipc: host
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    volumes:
+      - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
+      - ./chat-templates/:/app/chat-templates:Z
+      - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
+    networks:
+      default:
+        aliases:
+          - llm-backend
+    environment:
+      - VLLM_ROCM_USE_AITER=1
+      - VLLM_ROCM_ALLOW_RDNA4_AITER_ATTENTION=1
+      - VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION=1
+      # - VLLM_V1_USE_PREFILL_DECODE_ATTENTION=0 # adding seems to slow down tg at 60000
+      - VLLM_ROCM_USE_AITER_MHA=1
+      - VLLM_ROCM_USE_AITER_PAGED_ATTN=0
+      - VLLM_ROCM_USE_AITER_MOE=0
+      - VLLM_ROCM_USE_AITER_LINEAR=0
+      - FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
+      - PYTORCH_ALLOC_CONF=expandable_segments:True
+    command: >
+      python3 -m vllm.entrypoints.openai.api_server
+      --model Qwen/Qwen3.6-27B-FP8
+      --served-model-name qwen3.6-27b
+      -tp 2
+      --dtype auto
+      --attention-backend ROCM_AITER_UNIFIED_ATTN
+      --compilation-config '{"pass_config":{"fuse_norm_quant":false}}'
+      --max-model-len 128000
+      --gpu-memory-utilization 0.95
+      --enable-chunked-prefill
+      --max-num-batched-tokens 8192
+      --enable-prefix-caching
+      --trust-remote-code
+      --quantization fp8
+      --max-num-seqs 4
+      --enable-auto-tool-choice
+      --tool-call-parser qwen3_coder
+      --reasoning-parser qwen3
+      --host 0.0.0.0
+      --port 8000
+      --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
+      --speculative-config '{"method":"mtp","num_speculative_tokens":3}'
 
   llamacpp-rocm:
     image: ghcr.io/ggml-org/llama.cpp:server-rocm
