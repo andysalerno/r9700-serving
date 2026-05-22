@@ -67,7 +67,7 @@ services:
         GFX_ARCH: gfx1201
         PYTHON: python3.12
         VLLM_WHEEL_URL: https://wheels.vllm.ai/rocm/nightly/rocm722
-        VLLM_VERSION: 0.21.1rc1.dev170+g905b97adf.rocm722
+        VLLM_VERSION: 0.21.1rc1.dev192+g39910f2b2.rocm722
         ROCM_SDK_CORE_VERSION: 7.13.0
         ROCM_SDK_LIBRARIES_VERSION: 7.13.0
         FLASH_ATTN_VERSION: 2.8.3
@@ -114,6 +114,8 @@ services:
       # NCCL_SHM_DISABLE: "0"
       # VLLM_ROCM_USE_AITER: "1"
       # VLLM_ROCM_SHUFFLE_KV_CACHE_LAYOUT: "0"
+      # VLLM_ROCM_ALLOW_RDNA4_AITER_ATTENTION: "1"
+      # VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION: "1"
       FLASH_ATTENTION_TRITON_AMD_ENABLE: "TRUE"
       # FLASH_ATTENTION_TRITON_AMD_AUTOTUNE: "TRUE"
       # VLLM_LOGGING_LEVEL: DEBUG
@@ -121,6 +123,10 @@ services:
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: "http/protobuf"
       OTEL_EXPORTER_OTLP_TRACES_INSECURE: "true"
       OTEL_RESOURCE_ATTRIBUTES: "service.namespace=llmhost,deployment.environment=local,host.name=hirose"
+    # --compilation-config '{"pass_config":{"fuse_norm_quant":false}}'
+    # --enable-chunked-prefill
+    # --max-num-batched-tokens 8192
+    # --speculative-config '{"method": "mtp", "num_speculative_tokens": 3}'
     command: >
       Qwen/Qwen3.6-27B-FP8
       --tokenizer Qwen/Qwen3.6-27B
@@ -130,14 +136,14 @@ services:
       --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3
       --max-model-len 128000
       --enable-prefix-caching
+      --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
+      --gpu-memory-utilization 0.93
+
       --dtype auto
       --max-num-seqs 4
       --kv-cache-dtype fp8
       -tp 2
-      --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
-      --speculative-config '{"method": "mtp", "num_speculative_tokens": 2}'
-      --gpu-memory-utilization 0.93
-
+      --speculative-config '{"method": "mtp", "num_speculative_tokens": 3}'
       --attention-backend TRITON_ATTN
 
       --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
@@ -284,6 +290,7 @@ services:
       - VLLM_ROCM_USE_AITER_LINEAR=0
       - FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
       - PYTORCH_ALLOC_CONF=expandable_segments:True
+      # --speculative-config '{"method":"mtp","num_speculative_tokens":3}'
     command: >
       python3 -m vllm.entrypoints.openai.api_server
       --model Qwen/Qwen3.6-27B-FP8
@@ -306,7 +313,6 @@ services:
       --host 0.0.0.0
       --port 8000
       --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
-      --speculative-config '{"method":"mtp","num_speculative_tokens":3}'
 
   llamacpp-rocm:
     image: ghcr.io/ggml-org/llama.cpp:server-rocm
@@ -375,7 +381,6 @@ services:
       - /dev/dri:/dev/dri
     group_add:
       - "video"
-      - "render"
     cap_add:
       - SYS_PTRACE
     security_opt:
