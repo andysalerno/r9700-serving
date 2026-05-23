@@ -1,0 +1,29 @@
+# Patch an existing vLLM ROCm wheel image with the gfx12x/R9700 runtime changes.
+#
+# Build from the llmhost repo root:
+#   docker build -t localhost/vllm-rocm-wheel-gfx12x-patched \
+#     --build-arg BASE_IMAGE=localhost/vllm-rocm-wheel \
+#     -f docker/Dockerfile.wheel-gfx12x-patched .
+
+ARG BASE_IMAGE=localhost/vllm-rocm-wheel
+FROM ${BASE_IMAGE}
+
+COPY docker/patches/GFX12x_R9700_RUNTIME.patch /tmp/GFX12x_R9700_RUNTIME.patch
+
+RUN set -eux; \
+    PYTHON_BIN="$(command -v python || command -v python3)"; \
+    SITE_PACKAGES="$("${PYTHON_BIN}" -c 'import site; paths = site.getsitepackages(); print(next((p for p in paths if p.endswith("site-packages")), paths[0]))')"; \
+    cd "${SITE_PACKAGES}"; \
+    if git apply --check /tmp/GFX12x_R9700_RUNTIME.patch; then \
+        git apply /tmp/GFX12x_R9700_RUNTIME.patch; \
+        echo "Applied gfx12x/R9700 runtime patch"; \
+    elif git apply --reverse --check /tmp/GFX12x_R9700_RUNTIME.patch; then \
+        echo "gfx12x/R9700 runtime patch is already applied"; \
+    else \
+        git apply --check /tmp/GFX12x_R9700_RUNTIME.patch; \
+    fi; \
+    "${PYTHON_BIN}" -m py_compile \
+        vllm/_aiter_ops.py \
+        vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py \
+        vllm/platforms/rocm.py \
+        vllm/v1/attention/backends/rocm_aiter_fa.py

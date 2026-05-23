@@ -255,6 +255,91 @@ services:
       --host 0.0.0.0
       --port 8000
 
+  vllm-rocm-wheel-gfx12x-patched:
+    profiles: ["vllm-rocm-wheel-gfx12x-patched"]
+    image: localhost/vllm-rocm-wheel-gfx12x-patched
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.wheel-gfx12x-patched
+      args:
+        BASE_IMAGE: localhost/vllm-rocm-wheel-nightly
+    container_name: vllm-rocm-wheel-gfx12x-patched
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - "video"
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - label=disable
+    ipc: host
+    ports:
+      - "8000:8000"
+    depends_on:
+      - aspire-dashboard
+    networks:
+      default:
+        aliases:
+          - llm-backend
+    volumes:
+      - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
+      - ./chat-templates/:/app/chat-templates:Z
+      - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
+
+    environment:
+      HIP_VISIBLE_DEVICES: "0,1"
+      ROCR_VISIBLE_DEVICES: "0,1"
+      CUDA_VISIBLE_DEVICES: "0,1"
+      HIP_PLATFORM: "amd"
+      VLLM_TARGET_DEVICE: "rocm"
+      VLLM_ROCM_GCN_ARCH: "gfx1201"
+      PYTORCH_ROCM_ARCH: "gfx1201"
+      HIP_ARCHITECTURES: "gfx1201"
+      AMDGPU_TARGETS: "gfx1201"
+      GPU_ARCHS: "gfx1201"
+      VLLM_ROCM_USE_AITER: "1"
+      VLLM_ROCM_USE_AITER_MHA: "1"
+      VLLM_ROCM_USE_AITER_MLA: "0"
+      VLLM_ROCM_USE_AITER_MOE: "0"
+      VLLM_ROCM_USE_AITER_LINEAR: "0"
+      VLLM_ROCM_USE_AITER_FP8BMM: "0"
+      VLLM_ROCM_USE_AITER_FP4BMM: "0"
+      VLLM_ROCM_USE_AITER_TRITON_GEMM: "0"
+      VLLM_ROCM_USE_AITER_RMSNORM: "0"
+      VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION: "0"
+      VLLM_ROCM_SHUFFLE_KV_CACHE_LAYOUT: "0"
+      OTEL_SERVICE_NAME: "vllm-rocm-wheel-gfx12x-patched"
+      OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: "http/protobuf"
+      OTEL_EXPORTER_OTLP_TRACES_INSECURE: "true"
+      OTEL_RESOURCE_ATTRIBUTES: "service.namespace=llmhost,deployment.environment=local,host.name=hirose"
+
+    command: >
+      Qwen/Qwen3.6-27B-FP8
+      --tokenizer Qwen/Qwen3.6-27B
+      --served-model-name qwen3.6-27b
+      --chat-template /app/chat-templates/qwen36.jinja
+      --limit-mm-per-prompt '{"image": 0, "audio": 0, "video": 0}'
+      --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3
+      --max-model-len 128000
+      --enable-prefix-caching
+      --dtype auto
+      --max-num-seqs 4
+      --kv-cache-dtype fp8
+      -tp 2
+      --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
+      --gpu-memory-utilization 0.93
+
+      --attention-backend ROCM_AITER_FA
+
+      --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
+      --collect-detailed-traces=all
+      --enable-log-requests
+      --enable-logging-iteration-details
+
+      --host 0.0.0.0
+      --port 8000
+
   vllm-qwen36-27b-fp8-aml731:
     image: aml731/vllm-aiter:v0.20.2
     profiles: ["vllm-aml"]
@@ -433,7 +518,7 @@ services:
   aspire-dashboard:
     image: mcr.microsoft.com/dotnet/aspire-dashboard:latest
     container_name: aspire-dashboard
-    profiles: ["vllm-rocm-wheel", "vllm-rocm-wheel-nightly"]
+    profiles: ["vllm-rocm-wheel", "vllm-rocm-wheel-nightly", "vllm-rocm-wheel-gfx12x-patched"]
     ports:
       - "8002:18888"
       - "4317:18889"
