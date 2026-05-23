@@ -57,30 +57,29 @@ index ce4fc3cfb..8536e96fd 100644
                          cls._AITER_ENABLED   -----> Check by the logic in `is_enabled()`
  
 diff --git a/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py b/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py
-index 0e31331e7..8522f23ba 100644
+index 0e31331e7..c08022aa6 100644
 --- a/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py
 +++ b/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py
-@@ -759,16 +759,8 @@ class BatchedTritonExperts(mk.FusedMoEExpertsModular):
-         weight_key: QuantKey | None,
-         activation_key: QuantKey | None,
+@@ -761,13 +761,13 @@ class BatchedTritonExperts(mk.FusedMoEExpertsModular):
      ) -> bool:
--        p = current_platform
--        if p.is_rocm():
+         p = current_platform
+         if p.is_rocm():
 -            from vllm.platforms.rocm import on_gfx9
--
++            from vllm.platforms.rocm import on_gfx12x, on_gfx9
+ 
 -            is_rocm_on_gfx9 = on_gfx9()
--        else:
++            is_rocm_on_gfx9_or_gfx12x = on_gfx9() or on_gfx12x()
+         else:
 -            is_rocm_on_gfx9 = False
--
++            is_rocm_on_gfx9_or_gfx12x = False
+ 
 -        device_supports_fp8 = is_rocm_on_gfx9 or (
--            p.is_cuda() and p.has_device_capability((8, 9))
-+        device_supports_fp8 = (
-+            current_platform.is_cuda_alike() and current_platform.supports_fp8()
++        device_supports_fp8 = is_rocm_on_gfx9_or_gfx12x or (
+             p.is_cuda() and p.has_device_capability((8, 9))
          )
  
-         supported: list[tuple[QuantKey | None, QuantKey | None]] = [(None, None)]
 diff --git a/vllm/platforms/rocm.py b/vllm/platforms/rocm.py
-index 114d236f1..52dd757d1 100644
+index 114d236f1..96ba5e8ca 100644
 --- a/vllm/platforms/rocm.py
 +++ b/vllm/platforms/rocm.py
 @@ -594,7 +594,7 @@ class RocmPlatform(Platform):
@@ -88,7 +87,7 @@ index 114d236f1..52dd757d1 100644
          from vllm._aiter_ops import rocm_aiter_ops
  
 -        if rocm_aiter_ops.is_enabled() and on_gfx9():
-+        if rocm_aiter_ops.is_enabled() and (on_mi3xx() or on_gfx12x()):
++        if rocm_aiter_ops.is_enabled() and (on_gfx9() or on_gfx12x()):
              logger.info_once("Using AITER Flash Attention backend for ViT model.")
              return AttentionBackendEnum.ROCM_AITER_FA
  
