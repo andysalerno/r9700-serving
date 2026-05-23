@@ -299,7 +299,7 @@ services:
       AMDGPU_TARGETS: "gfx1201"
       GPU_ARCHS: "gfx1201"
       VLLM_ROCM_USE_AITER: "1"
-      VLLM_ROCM_USE_AITER_MHA: "1"
+      VLLM_ROCM_USE_AITER_MHA: "0"
       VLLM_ROCM_USE_AITER_MLA: "0"
       VLLM_ROCM_USE_AITER_MOE: "0"
       VLLM_ROCM_USE_AITER_LINEAR: "0"
@@ -307,7 +307,7 @@ services:
       VLLM_ROCM_USE_AITER_FP4BMM: "0"
       VLLM_ROCM_USE_AITER_TRITON_GEMM: "0"
       VLLM_ROCM_USE_AITER_RMSNORM: "0"
-      VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION: "0"
+      VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION: "1"
       VLLM_ROCM_SHUFFLE_KV_CACHE_LAYOUT: "0"
       OTEL_SERVICE_NAME: "vllm-rocm-wheel-gfx12x-patched"
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: "http/protobuf"
@@ -330,7 +330,8 @@ services:
       --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
       --gpu-memory-utilization 0.93
 
-      --attention-backend ROCM_AITER_FA
+      --attention-backend ROCM_AITER_UNIFIED_ATTN
+      --compilation-config '{"pass_config":{"fuse_norm_quant":false,"fuse_act_quant":false,"fuse_allreduce_rms":false,"fuse_mla_dual_rms_norm":false}}'
 
       --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
       --collect-detailed-traces=all

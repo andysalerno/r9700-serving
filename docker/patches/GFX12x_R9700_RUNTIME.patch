@@ -93,7 +93,7 @@ index 114d236f1..52dd757d1 100644
              return AttentionBackendEnum.ROCM_AITER_FA
  
 diff --git a/vllm/v1/attention/backends/rocm_aiter_fa.py b/vllm/v1/attention/backends/rocm_aiter_fa.py
-index 5dbedc86b..861e1436a 100644
+index 5dbedc86b..2b88202b2 100644
 --- a/vllm/v1/attention/backends/rocm_aiter_fa.py
 +++ b/vllm/v1/attention/backends/rocm_aiter_fa.py
 @@ -769,12 +769,12 @@ class AiterFlashAttentionBackend(AttentionBackend):
@@ -113,3 +113,16 @@ index 5dbedc86b..861e1436a 100644
  
      @classmethod
      def supports_non_causal(cls) -> bool:
+@@ -1222,7 +1222,11 @@ class AiterFlashAttentionImpl(AttentionImpl):
+                 # fall back to the unified_attention triton kernel which
+                 # handles both correctly.
+                 _MIN_HEAD_SIZE_FOR_LL4MI = 64
+-                use_unified_attention = self.head_size < _MIN_HEAD_SIZE_FOR_LL4MI
++                from vllm.platforms.rocm import on_gfx12x
++
++                use_unified_attention = (
++                    self.head_size < _MIN_HEAD_SIZE_FOR_LL4MI or on_gfx12x()
++                )
+ 
+                 if use_unified_attention:
+                     assert not rocm_aiter_ops.is_shuffle_kv_cache_enabled(), (
