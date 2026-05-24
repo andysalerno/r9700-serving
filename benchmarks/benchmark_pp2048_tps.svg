@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="820" viewBox="0 0 1400 820" role="img" aria-labelledby="title desc">
+<title id="title">Prompt-processing throughput by depth</title>
+<desc id="desc">Line chart. X axis is context depth. Y axis is pp2048 tokens/s.</desc>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<style>text{font-family:Arial,Helvetica,sans-serif;fill:#222}.axis{font-size:14px}.title{font-size:24px;font-weight:700}.grid{stroke:#e6e6e6;stroke-width:1}.axisline{stroke:#333;stroke-width:1.4}.legend{font-size:13px}.series{fill:none;stroke-width:2.4}.marker{stroke:#fff;stroke-width:1}</style>
+<text x="95" y="38" class="title">Prompt-processing throughput by depth</text>
+<line x1="95" y1="725.00" x2="945" y2="725.00" class="grid"/>
+<text x="83" y="729.00" text-anchor="end" class="axis">0</text>
+<line x1="95" y1="634.29" x2="945" y2="634.29" class="grid"/>
+<text x="83" y="638.29" text-anchor="end" class="axis">500</text>
+<line x1="95" y1="543.57" x2="945" y2="543.57" class="grid"/>
+<text x="83" y="547.57" text-anchor="end" class="axis">1000</text>
+<line x1="95" y1="452.86" x2="945" y2="452.86" class="grid"/>
+<text x="83" y="456.86" text-anchor="end" class="axis">1500</text>
+<line x1="95" y1="362.14" x2="945" y2="362.14" class="grid"/>
+<text x="83" y="366.14" text-anchor="end" class="axis">2000</text>
+<line x1="95" y1="271.43" x2="945" y2="271.43" class="grid"/>
+<text x="83" y="275.43" text-anchor="end" class="axis">2500</text>
+<line x1="95" y1="180.71" x2="945" y2="180.71" class="grid"/>
+<text x="83" y="184.71" text-anchor="end" class="axis">3000</text>
+<line x1="95" y1="90.00" x2="945" y2="90.00" class="grid"/>
+<text x="83" y="94.00" text-anchor="end" class="axis">3500</text>
+<line x1="95" y1="90" x2="95" y2="725" class="axisline"/>
+<line x1="95" y1="725" x2="945" y2="725" class="axisline"/>
+<line x1="95.00" y1="725" x2="95.00" y2="732" class="axisline"/>
+<text x="95.00" y="755" text-anchor="middle" class="axis">base</text>
+<line x1="307.50" y1="725" x2="307.50" y2="732" class="axisline"/>
+<text x="307.50" y="755" text-anchor="middle" class="axis">d2048</text>
+<line x1="520.00" y1="725" x2="520.00" y2="732" class="axisline"/>
+<text x="520.00" y="755" text-anchor="middle" class="axis">d8192</text>
+<line x1="732.50" y1="725" x2="732.50" y2="732" class="axisline"/>
+<text x="732.50" y="755" text-anchor="middle" class="axis">d32000</text>
+<line x1="945.00" y1="725" x2="945.00" y2="732" class="axisline"/>
+<text x="945.00" y="755" text-anchor="middle" class="axis">d64000</text>
+<text transform="translate(26 407.50) rotate(-90)" text-anchor="middle" class="axis">pp2048 tokens/s</text>
+<path d="M 95.00 284.30 L 307.50 304.78 L 520.00 388.76 L 732.50 564.56 L 945.00 624.22" class="series" stroke="#1f77b4"/>
+<circle cx="95.00" cy="284.30" r="4" fill="#1f77b4" class="marker"/>
+<circle cx="307.50" cy="304.78" r="4" fill="#1f77b4" class="marker"/>
+<circle cx="520.00" cy="388.76" r="4" fill="#1f77b4" class="marker"/>
+<circle cx="732.50" cy="564.56" r="4" fill="#1f77b4" class="marker"/>
+<circle cx="945.00" cy="624.22" r="4" fill="#1f77b4" class="marker"/>
+<path d="M 95.00 292.56 L 307.50 381.27 L 520.00 499.23 L 732.50 632.23 L 945.00 674.26" class="series" stroke="#ff7f0e"/>
+<circle cx="95.00" cy="292.56" r="4" fill="#ff7f0e" class="marker"/>
+<circle cx="307.50" cy="381.27" r="4" fill="#ff7f0e" class="marker"/>
+<circle cx="520.00" cy="499.23" r="4" fill="#ff7f0e" class="marker"/>
+<circle cx="732.50" cy="632.23" r="4" fill="#ff7f0e" class="marker"/>
+<circle cx="945.00" cy="674.26" r="4" fill="#ff7f0e" class="marker"/>
+<path d="M 95.00 218.16 L 307.50 189.59 L 520.00 235.69 L 732.50 328.70 L 945.00 421.31" class="series" stroke="#2ca02c"/>
+<circle cx="95.00" cy="218.16" r="4" fill="#2ca02c" class="marker"/>
+<circle cx="307.50" cy="189.59" r="4" fill="#2ca02c" class="marker"/>
+<circle cx="520.00" cy="235.69" r="4" fill="#2ca02c" class="marker"/>
+<circle cx="732.50" cy="328.70" r="4" fill="#2ca02c" class="marker"/>
+<circle cx="945.00" cy="421.31" r="4" fill="#2ca02c" class="marker"/>
+<path d="M 95.00 173.66 L 307.50 105.77 L 520.00 125.43 L 732.50 189.19 L 945.00 266.03" class="series" stroke="#d62728"/>
+<circle cx="95.00" cy="173.66" r="4" fill="#d62728" class="marker"/>
+<circle cx="307.50" cy="105.77" r="4" fill="#d62728" class="marker"/>
+<circle cx="520.00" cy="125.43" r="4" fill="#d62728" class="marker"/>
+<circle cx="732.50" cy="189.19" r="4" fill="#d62728" class="marker"/>
+<circle cx="945.00" cy="266.03" r="4" fill="#d62728" class="marker"/>
+<path d="M 95.00 295.15 L 307.50 291.37 L 520.00 300.50 L 732.50 359.45 L 945.00 423.21" class="series" stroke="#9467bd"/>
+<circle cx="95.00" cy="295.15" r="4" fill="#9467bd" class="marker"/>
+<circle cx="307.50" cy="291.37" r="4" fill="#9467bd" class="marker"/>
+<circle cx="520.00" cy="300.50" r="4" fill="#9467bd" class="marker"/>
+<circle cx="732.50" cy="359.45" r="4" fill="#9467bd" class="marker"/>
+<circle cx="945.00" cy="423.21" r="4" fill="#9467bd" class="marker"/>
+<path d="M 95.00 588.77 L 307.50 591.22 L 520.00 590.56 L 732.50 596.71 L 945.00 605.47" class="series" stroke="#8c564b"/>
+<circle cx="95.00" cy="588.77" r="4" fill="#8c564b" class="marker"/>
+<circle cx="307.50" cy="591.22" r="4" fill="#8c564b" class="marker"/>
+<circle cx="520.00" cy="590.56" r="4" fill="#8c564b" class="marker"/>
+<circle cx="732.50" cy="596.71" r="4" fill="#8c564b" class="marker"/>
+<circle cx="945.00" cy="605.47" r="4" fill="#8c564b" class="marker"/>
+<path d="M 95.00 321.32 L 307.50 382.70 L 520.00 507.78 L 732.50 635.46 L 945.00 675.10" class="series" stroke="#e377c2"/>
+<circle cx="95.00" cy="321.32" r="4" fill="#e377c2" class="marker"/>
+<circle cx="307.50" cy="382.70" r="4" fill="#e377c2" class="marker"/>
+<circle cx="520.00" cy="507.78" r="4" fill="#e377c2" class="marker"/>
+<circle cx="732.50" cy="635.46" r="4" fill="#e377c2" class="marker"/>
+<circle cx="945.00" cy="675.10" r="4" fill="#e377c2" class="marker"/>
+<path d="M 95.00 255.55 L 307.50 192.37 L 520.00 208.08 L 732.50 310.28 L 945.00 398.68" class="series" stroke="#7f7f7f"/>
+<circle cx="95.00" cy="255.55" r="4" fill="#7f7f7f" class="marker"/>
+<circle cx="307.50" cy="192.37" r="4" fill="#7f7f7f" class="marker"/>
+<circle cx="520.00" cy="208.08" r="4" fill="#7f7f7f" class="marker"/>
+<circle cx="732.50" cy="310.28" r="4" fill="#7f7f7f" class="marker"/>
+<circle cx="945.00" cy="398.68" r="4" fill="#7f7f7f" class="marker"/>
+<path d="M 95.00 339.03 L 307.50 184.99 L 520.00 203.42 L 732.50 305.72 L 945.00 395.64" class="series" stroke="#bcbd22"/>
+<circle cx="95.00" cy="339.03" r="4" fill="#bcbd22" class="marker"/>
+<circle cx="307.50" cy="184.99" r="4" fill="#bcbd22" class="marker"/>
+<circle cx="520.00" cy="203.42" r="4" fill="#bcbd22" class="marker"/>
+<circle cx="732.50" cy="305.72" r="4" fill="#bcbd22" class="marker"/>
+<circle cx="945.00" cy="395.64" r="4" fill="#bcbd22" class="marker"/>
+<path d="M 95.00 238.65 L 307.50 169.46 L 520.00 168.61 L 732.50 227.51 L 945.00 296.38" class="series" stroke="#17becf"/>
+<circle cx="95.00" cy="238.65" r="4" fill="#17becf" class="marker"/>
+<circle cx="307.50" cy="169.46" r="4" fill="#17becf" class="marker"/>
+<circle cx="520.00" cy="168.61" r="4" fill="#17becf" class="marker"/>
+<circle cx="732.50" cy="227.51" r="4" fill="#17becf" class="marker"/>
+<circle cx="945.00" cy="296.38" r="4" fill="#17becf" class="marker"/>
+<line x1="983" y1="90" x2="1015" y2="90" stroke="#1f77b4" stroke-width="3"/>
+<circle cx="999" cy="90" r="4" fill="#1f77b4" stroke="#fff" stroke-width="1"/>
+<text x="1027" y="94" class="legend">nightly_rocm_3mtp</text>
+<line x1="983" y1="112" x2="1015" y2="112" stroke="#ff7f0e" stroke-width="3"/>
+<circle cx="999" cy="112" r="4" fill="#ff7f0e" stroke="#fff" stroke-width="1"/>
+<text x="1027" y="116" class="legend">nightly_triton_3mtp</text>
+<line x1="983" y1="134" x2="1015" y2="134" stroke="#2ca02c" stroke-width="3"/>
+<circle cx="999" cy="134" r="4" fill="#2ca02c" stroke="#fff" stroke-width="1"/>
+<text x="1027" y="138" class="legend">aml_aiter_3mtp</text>
+<line x1="983" y1="156" x2="1015" y2="156" stroke="#d62728" stroke-width="3"/>
+<circle cx="999" cy="156" r="4" fill="#d62728" stroke="#fff" stroke-width="1"/>
+<text x="1027" y="160" class="legend">custom_aiter_0mtp</text>
+<line x1="983" y1="178" x2="1015" y2="178" stroke="#9467bd" stroke-width="3"/>
+<circle cx="999" cy="178" r="4" fill="#9467bd" stroke="#fff" stroke-width="1"/>
+<text x="1027" y="182" class="legend">custom_aiter_2mtp</text>
+<line x1="983" y1="200" x2="1015" y2="200" stroke="#8c564b" stroke-width="3"/>
+<circle cx="999" cy="200" r="4" fill="#8c564b" stroke="#fff" stroke-width="1"/>
+<text x="1027" y="204" class="legend">custom_unchangedimage_2mtp</text>
+<line x1="983" y1="222" x2="1015" y2="222" stroke="#e377c2" stroke-width="3"/>
+<circle cx="999" cy="222" r="4" fill="#e377c2" stroke="#fff" stroke-width="1"/>
+<text x="1027" y="226" class="legend">05_24_triton_3mtp</text>
+<line x1="983" y1="244" x2="1015" y2="244" stroke="#7f7f7f" stroke-width="3"/>
+<circle cx="999" cy="244" r="4" fill="#7f7f7f" stroke="#fff" stroke-width="1"/>
+<text x="1027" y="248" class="legend">05_24_aiter_patched_3mtp</text>
+<line x1="983" y1="266" x2="1015" y2="266" stroke="#bcbd22" stroke-width="3"/>
+<circle cx="999" cy="266" r="4" fill="#bcbd22" stroke="#fff" stroke-width="1"/>
+<text x="1027" y="270" class="legend">05_24_aiter_patched_3mtp_hw1</text>
+<line x1="983" y1="288" x2="1015" y2="288" stroke="#17becf" stroke-width="3"/>
+<circle cx="999" cy="288" r="4" fill="#17becf" stroke="#fff" stroke-width="1"/>
+<text x="1027" y="292" class="legend">05_24_aiter_patched_3mtp_hw1</text>
+<text x="1027" y="308" class="legend">aiterdraft</text>
+</svg>

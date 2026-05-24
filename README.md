@@ -103,6 +103,14 @@ The patch is a local runtime patch against the installed vLLM wheel. When the ni
 
 Benchmark source files live in `benchmarks/`. Values below are mean `t/s` with the `+/-` ranges omitted for readability. Each speed cell is `pp2048 / tg32`. Depth columns are sampled from the full benchmark output; `d1024`, `d4096`, and `d16384` are omitted here. `AITER_UA` means `ROCM_AITER_UNIFIED_ATTN`; `HWQ` means `GPU_MAX_HW_QUEUES`.
 
+All benchmarks use the images from this repo and run on my machine with 2x R9700 and a Ryzen 9900X3D.
+
+![Prompt-processing throughput by depth](benchmarks/benchmark_pp2048_tps.svg)
+
+![Token-generation throughput by depth](benchmarks/benchmark_tg32_tps.svg)
+
+> Note: I have absolutely no idea what AML's image is doing to obtain the insane tg speeds, or if that's somehow misleading data, or what.
+
 | Benchmark | Image/config | MTP | Attention | HWQ | Meaningful difference | base | d2048 | d8192 | d32000 | d64000 |
 | --- | --- | ---: | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
 | `nightly_rocm_3mtp` | stock nightly dev236 | 3 | `ROCM_ATTN` | - | baseline ROCm attention | 2429.06 / 38.97 | 2316.16 / 36.59 | 1853.30 / 21.40 | 884.30 / 7.87 | 555.47 / 4.65 |

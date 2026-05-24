@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="820" viewBox="0 0 1400 820" role="img" aria-labelledby="title desc">
+<title id="title">Token-generation throughput by depth</title>
+<desc id="desc">Line chart. X axis is context depth. Y axis is tg32 tokens/s.</desc>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<style>text{font-family:Arial,Helvetica,sans-serif;fill:#222}.axis{font-size:14px}.title{font-size:24px;font-weight:700}.grid{stroke:#e6e6e6;stroke-width:1}.axisline{stroke:#333;stroke-width:1.4}.legend{font-size:13px}.series{fill:none;stroke-width:2.4}.marker{stroke:#fff;stroke-width:1}</style>
+<text x="95" y="38" class="title">Token-generation throughput by depth</text>
+<line x1="95" y1="725.00" x2="945" y2="725.00" class="grid"/>
+<text x="83" y="729.00" text-anchor="end" class="axis">0</text>
+<line x1="95" y1="566.25" x2="945" y2="566.25" class="grid"/>
+<text x="83" y="570.25" text-anchor="end" class="axis">200</text>
+<line x1="95" y1="407.50" x2="945" y2="407.50" class="grid"/>
+<text x="83" y="411.50" text-anchor="end" class="axis">400</text>
+<line x1="95" y1="248.75" x2="945" y2="248.75" class="grid"/>
+<text x="83" y="252.75" text-anchor="end" class="axis">600</text>
+<line x1="95" y1="90.00" x2="945" y2="90.00" class="grid"/>
+<text x="83" y="94.00" text-anchor="end" class="axis">800</text>
+<line x1="95" y1="90" x2="95" y2="725" class="axisline"/>
+<line x1="95" y1="725" x2="945" y2="725" class="axisline"/>
+<line x1="95.00" y1="725" x2="95.00" y2="732" class="axisline"/>
+<text x="95.00" y="755" text-anchor="middle" class="axis">base</text>
+<line x1="307.50" y1="725" x2="307.50" y2="732" class="axisline"/>
+<text x="307.50" y="755" text-anchor="middle" class="axis">d2048</text>
+<line x1="520.00" y1="725" x2="520.00" y2="732" class="axisline"/>
+<text x="520.00" y="755" text-anchor="middle" class="axis">d8192</text>
+<line x1="732.50" y1="725" x2="732.50" y2="732" class="axisline"/>
+<text x="732.50" y="755" text-anchor="middle" class="axis">d32000</text>
+<line x1="945.00" y1="725" x2="945.00" y2="732" class="axisline"/>
+<text x="945.00" y="755" text-anchor="middle" class="axis">d64000</text>
+<text transform="translate(26 407.50) rotate(-90)" text-anchor="middle" class="axis">tg32 tokens/s</text>
+<path d="M 95.00 694.07 L 307.50 695.96 L 520.00 708.01 L 732.50 718.75 L 945.00 721.31" class="series" stroke="#1f77b4"/>
+<circle cx="95.00" cy="694.07" r="4" fill="#1f77b4" class="marker"/>
+<circle cx="307.50" cy="695.96" r="4" fill="#1f77b4" class="marker"/>
+<circle cx="520.00" cy="708.01" r="4" fill="#1f77b4" class="marker"/>
+<circle cx="732.50" cy="718.75" r="4" fill="#1f77b4" class="marker"/>
+<circle cx="945.00" cy="721.31" r="4" fill="#1f77b4" class="marker"/>
+<path d="M 95.00 695.15 L 307.50 696.63 L 520.00 707.19 L 732.50 717.72 L 945.00 721.43" class="series" stroke="#ff7f0e"/>
+<circle cx="95.00" cy="695.15" r="4" fill="#ff7f0e" class="marker"/>
+<circle cx="307.50" cy="696.63" r="4" fill="#ff7f0e" class="marker"/>
+<circle cx="520.00" cy="707.19" r="4" fill="#ff7f0e" class="marker"/>
+<circle cx="732.50" cy="717.72" r="4" fill="#ff7f0e" class="marker"/>
+<circle cx="945.00" cy="721.43" r="4" fill="#ff7f0e" class="marker"/>
+<path d="M 95.00 660.30 L 307.50 657.10 L 520.00 110.73 L 732.50 405.56 L 945.00 626.75" class="series" stroke="#2ca02c"/>
+<circle cx="95.00" cy="660.30" r="4" fill="#2ca02c" class="marker"/>
+<circle cx="307.50" cy="657.10" r="4" fill="#2ca02c" class="marker"/>
+<circle cx="520.00" cy="110.73" r="4" fill="#2ca02c" class="marker"/>
+<circle cx="732.50" cy="405.56" r="4" fill="#2ca02c" class="marker"/>
+<circle cx="945.00" cy="626.75" r="4" fill="#2ca02c" class="marker"/>
+<path d="M 95.00 698.98 L 307.50 699.95 L 520.00 698.87 L 732.50 699.97 L 945.00 698.67" class="series" stroke="#d62728"/>
+<circle cx="95.00" cy="698.98" r="4" fill="#d62728" class="marker"/>
+<circle cx="307.50" cy="699.95" r="4" fill="#d62728" class="marker"/>
+<circle cx="520.00" cy="698.87" r="4" fill="#d62728" class="marker"/>
+<circle cx="732.50" cy="699.97" r="4" fill="#d62728" class="marker"/>
+<circle cx="945.00" cy="698.67" r="4" fill="#d62728" class="marker"/>
+<path d="M 95.00 693.30 L 307.50 693.04 L 520.00 697.02 L 732.50 705.64 L 945.00 712.60" class="series" stroke="#9467bd"/>
+<circle cx="95.00" cy="693.30" r="4" fill="#9467bd" class="marker"/>
+<circle cx="307.50" cy="693.04" r="4" fill="#9467bd" class="marker"/>
+<circle cx="520.00" cy="697.02" r="4" fill="#9467bd" class="marker"/>
+<circle cx="732.50" cy="705.64" r="4" fill="#9467bd" class="marker"/>
+<circle cx="945.00" cy="712.60" r="4" fill="#9467bd" class="marker"/>
+<path d="M 95.00 707.38 L 307.50 707.27 L 520.00 707.05 L 732.50 711.78 L 945.00 715.43" class="series" stroke="#8c564b"/>
+<circle cx="95.00" cy="707.38" r="4" fill="#8c564b" class="marker"/>
+<circle cx="307.50" cy="707.27" r="4" fill="#8c564b" class="marker"/>
+<circle cx="520.00" cy="707.05" r="4" fill="#8c564b" class="marker"/>
+<circle cx="732.50" cy="711.78" r="4" fill="#8c564b" class="marker"/>
+<circle cx="945.00" cy="715.43" r="4" fill="#8c564b" class="marker"/>
+<path d="M 95.00 692.77 L 307.50 696.00 L 520.00 707.59 L 732.50 718.15 L 945.00 721.06" class="series" stroke="#e377c2"/>
+<circle cx="95.00" cy="692.77" r="4" fill="#e377c2" class="marker"/>
+<circle cx="307.50" cy="696.00" r="4" fill="#e377c2" class="marker"/>
+<circle cx="520.00" cy="707.59" r="4" fill="#e377c2" class="marker"/>
+<circle cx="732.50" cy="718.15" r="4" fill="#e377c2" class="marker"/>
+<circle cx="945.00" cy="721.06" r="4" fill="#e377c2" class="marker"/>
+<path d="M 95.00 682.49 L 307.50 684.51 L 520.00 693.21 L 732.50 706.54 L 945.00 713.94" class="series" stroke="#7f7f7f"/>
+<circle cx="95.00" cy="682.49" r="4" fill="#7f7f7f" class="marker"/>
+<circle cx="307.50" cy="684.51" r="4" fill="#7f7f7f" class="marker"/>
+<circle cx="520.00" cy="693.21" r="4" fill="#7f7f7f" class="marker"/>
+<circle cx="732.50" cy="706.54" r="4" fill="#7f7f7f" class="marker"/>
+<circle cx="945.00" cy="713.94" r="4" fill="#7f7f7f" class="marker"/>
+<path d="M 95.00 677.14 L 307.50 679.30 L 520.00 692.89 L 732.50 704.69 L 945.00 712.67" class="series" stroke="#bcbd22"/>
+<circle cx="95.00" cy="677.14" r="4" fill="#bcbd22" class="marker"/>
+<circle cx="307.50" cy="679.30" r="4" fill="#bcbd22" class="marker"/>
+<circle cx="520.00" cy="692.89" r="4" fill="#bcbd22" class="marker"/>
+<circle cx="732.50" cy="704.69" r="4" fill="#bcbd22" class="marker"/>
+<circle cx="945.00" cy="712.67" r="4" fill="#bcbd22" class="marker"/>
+<path d="M 95.00 670.22 L 307.50 667.49 L 520.00 667.40 L 732.50 668.19 L 945.00 670.52" class="series" stroke="#17becf"/>
+<circle cx="95.00" cy="670.22" r="4" fill="#17becf" class="marker"/>
+<circle cx="307.50" cy="667.49" r="4" fill="#17becf" class="marker"/>
+<circle cx="520.00" cy="667.40" r="4" fill="#17becf" class="marker"/>
+<circle cx="732.50" cy="668.19" r="4" fill="#17becf" class="marker"/>
+<circle cx="945.00" cy="670.52" r="4" fill="#17becf" class="marker"/>
+<line x1="983" y1="90" x2="1015" y2="90" stroke="#1f77b4" stroke-width="3"/>
+<circle cx="999" cy="90" r="4" fill="#1f77b4" stroke="#fff" stroke-width="1"/>
+<text x="1027" y="94" class="legend">nightly_rocm_3mtp</text>
+<line x1="983" y1="112" x2="1015" y2="112" stroke="#ff7f0e" stroke-width="3"/>
+<circle cx="999" cy="112" r="4" fill="#ff7f0e" stroke="#fff" stroke-width="1"/>
+<text x="1027" y="116" class="legend">nightly_triton_3mtp</text>
+<line x1="983" y1="134" x2="1015" y2="134" stroke="#2ca02c" stroke-width="3"/>
+<circle cx="999" cy="134" r="4" fill="#2ca02c" stroke="#fff" stroke-width="1"/>
+<text x="1027" y="138" class="legend">aml_aiter_3mtp</text>
+<line x1="983" y1="156" x2="1015" y2="156" stroke="#d62728" stroke-width="3"/>
+<circle cx="999" cy="156" r="4" fill="#d62728" stroke="#fff" stroke-width="1"/>
+<text x="1027" y="160" class="legend">custom_aiter_0mtp</text>
+<line x1="983" y1="178" x2="1015" y2="178" stroke="#9467bd" stroke-width="3"/>
+<circle cx="999" cy="178" r="4" fill="#9467bd" stroke="#fff" stroke-width="1"/>
+<text x="1027" y="182" class="legend">custom_aiter_2mtp</text>
+<line x1="983" y1="200" x2="1015" y2="200" stroke="#8c564b" stroke-width="3"/>
+<circle cx="999" cy="200" r="4" fill="#8c564b" stroke="#fff" stroke-width="1"/>
+<text x="1027" y="204" class="legend">custom_unchangedimage_2mtp</text>
+<line x1="983" y1="222" x2="1015" y2="222" stroke="#e377c2" stroke-width="3"/>
+<circle cx="999" cy="222" r="4" fill="#e377c2" stroke="#fff" stroke-width="1"/>
+<text x="1027" y="226" class="legend">05_24_triton_3mtp</text>
+<line x1="983" y1="244" x2="1015" y2="244" stroke="#7f7f7f" stroke-width="3"/>
+<circle cx="999" cy="244" r="4" fill="#7f7f7f" stroke="#fff" stroke-width="1"/>
+<text x="1027" y="248" class="legend">05_24_aiter_patched_3mtp</text>
+<line x1="983" y1="266" x2="1015" y2="266" stroke="#bcbd22" stroke-width="3"/>
+<circle cx="999" cy="266" r="4" fill="#bcbd22" stroke="#fff" stroke-width="1"/>
+<text x="1027" y="270" class="legend">05_24_aiter_patched_3mtp_hw1</text>
+<line x1="983" y1="288" x2="1015" y2="288" stroke="#17becf" stroke-width="3"/>
+<circle cx="999" cy="288" r="4" fill="#17becf" stroke="#fff" stroke-width="1"/>
+<text x="1027" y="292" class="legend">05_24_aiter_patched_3mtp_hw1</text>
+<text x="1027" y="308" class="legend">aiterdraft</text>
+</svg>
