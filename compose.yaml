@@ -145,7 +145,7 @@ services:
       --max-num-seqs 4
       --kv-cache-dtype fp8
       -tp 2
-      --speculative-config '{"method": "mtp", "num_speculative_tokens": 3}'
+      --speculative-config '{"method": "mtp", "num_speculative_tokens": 3, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
       --attention-backend ROCM_AITER_UNIFIED_ATTN
 
   vllm-qwen36-27b-fp8-aml731:
