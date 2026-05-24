@@ -98,3 +98,20 @@ What it does, briefly:
 It does NOT modify any AITER code or inference-level logic, it just relaxes the restrictions in vllm attention-selection logic so that AITER will be treated as selectable for gfx1201. IMO this indicates vllm should be updated with a similar change, to let R9700 select an attention backend that runs much faster, though of course there may be bugs/downsides at the moment that would need to be fixed first (though I haven't encountered any).
 
 The patch is a local runtime patch against the installed vLLM wheel. When the nightly wheel changes, the patch will need to be refreshed if upstream files move or change.
+
+## Benchmarks
+
+Benchmark source files live in `benchmarks/`. Values below are mean `t/s` with the `+/-` ranges omitted for readability. Each speed cell is `pp2048 / tg32`. Depth columns are sampled from the full benchmark output; `d1024`, `d4096`, and `d16384` are omitted here. `AITER_UA` means `ROCM_AITER_UNIFIED_ATTN`; `HWQ` means `GPU_MAX_HW_QUEUES`.
+
+| Benchmark | Image/config | MTP | Attention | HWQ | Meaningful difference | base | d2048 | d8192 | d32000 | d64000 |
+| --- | --- | ---: | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
+| `nightly_rocm_3mtp` | stock nightly dev236 | 3 | `ROCM_ATTN` | - | baseline ROCm attention | 2429.06 / 38.97 | 2316.16 / 36.59 | 1853.30 / 21.40 | 884.30 / 7.87 | 555.47 / 4.65 |
+| `nightly_triton_3mtp` | stock nightly dev236 | 3 | `TRITON_ATTN` | - | Triton flash attention enabled | 2383.51 / 37.61 | 1894.56 / 35.74 | 1244.40 / 22.44 | 511.34 / 9.17 | 279.69 / 4.50 |
+| `aml_aiter_3mtp` | `aml731/vllm-aiter:v0.20.2` | 3 | `AITER_UA` | - | AITER MHA, chunked prefill, GPU util 0.95 | 2793.63 / 81.51 | 2951.10 / 85.54 | 2696.97 / 773.88 | 2184.32 / 402.44 | 1673.88 / 123.78 |
+| `custom_aiter_0mtp` | patched image | 0 | `AITER_UA` | - | MTP off, AITER on, selected fusions disabled | 3038.89 / 32.78 | 3413.06 / 31.56 | 3304.74 / 32.92 | 2953.29 / 31.53 | 2529.74 / 33.17 |
+| `custom_aiter_2mtp` | patched image | 2 | `AITER_UA` | - | AITER on, selected fusions disabled | 2369.27 / 39.94 | 2390.06 / 40.26 | 2339.78 / 35.25 | 2014.85 / 24.39 | 1663.42 / 15.62 |
+| `custom_unchangedimage_2mtp` | unchanged nightly image | 2 | `AITER_UA` | - | AITER requested without patched image | 750.86 / 22.20 | 737.36 / 22.34 | 741.00 / 22.62 | 707.09 / 16.66 | 658.85 / 12.06 |
+| `05_24_triton_3mtp` | stock nightly dev267 | 3 | `TRITON_ATTN` | - | newer nightly, Triton attention | 2225.01 / 40.60 | 1886.69 / 36.53 | 1197.28 / 21.94 | 493.52 / 8.63 | 275.05 / 4.96 |
+| `05_24_aiter_patched_3mtp` | patched nightly dev267 | 3 | `AITER_UA` | - | patch + AITER unified attention | 2587.54 / 53.56 | 2935.76 / 51.01 | 2849.15 / 40.05 | 2285.87 / 23.26 | 1798.61 / 13.93 |
+| `05_24_aiter_patched_3mtp_hw1` | patched nightly dev267 | 3 | `AITER_UA` | 1 | same as previous, `GPU_MAX_HW_QUEUES=1` | 2127.41 / 60.29 | 2976.45 / 57.58 | 2874.83 / 40.45 | 2310.98 / 25.59 | 1815.35 / 15.54 |
+| `05_24_aiter_patched_3mtp_hw1_aiterdraft` | patched nightly dev267 | 3 | `AITER_UA` | 1 | speculative `attention_backend=AITER_UA` | 2680.65 / 69.02 | 3062.04 / 72.45 | 3066.71 / 72.57 | 2742.06 / 71.57 | 2362.50 / 68.64 |
