@@ -1,5 +1,4 @@
 services:
-
   vllm-rocm-wheel-nightly:
     profiles: ["vllm-rocm-wheel-nightly"]
     image: localhost/vllm-rocm-wheel-nightly
@@ -71,7 +70,6 @@ services:
       --speculative-config '{"method": "mtp", "num_speculative_tokens": 3}'
       --attention-backend TRITON_ATTN
 
-
   vllm-rocm-wheel-gfx12x-patched:
     profiles: ["vllm-rocm-wheel-gfx12x-patched"]
     image: localhost/vllm-rocm-wheel-gfx12x-patched
@@ -142,7 +140,6 @@ services:
       -tp 2
       --speculative-config '{"method": "mtp", "num_speculative_tokens": 3}'
       --attention-backend ROCM_AITER_UNIFIED_ATTN
-
 
   vllm-qwen36-27b-fp8-aml731:
     image: aml731/vllm-aiter:v0.20.2
@@ -315,10 +312,9 @@ services:
       --speculative-config '{"method": "mtp", "num_speculative_tokens": 3}'
       --attention-backend TRITON_ATTN
 
-
-##########
-# llamacpp backends
-##########
+  ##########
+  # llamacpp backends
+  ##########
 
   llamacpp-rocm:
     image: ghcr.io/ggml-org/llama.cpp:server-rocm
@@ -422,10 +418,9 @@ services:
     # command: >
     #   --spec-type draft-mtp --spec-draft-n-max 2
 
-
-##########
-# tools and dashboards
-##########
+  ##########
+  # tools and dashboards
+  ##########
 
   chatui:
     image: ghcr.io/huggingface/chat-ui-db:latest
@@ -443,7 +438,12 @@ services:
   aspire-dashboard:
     image: mcr.microsoft.com/dotnet/aspire-dashboard:latest
     container_name: aspire-dashboard
-    profiles: ["vllm-rocm-wheel", "vllm-rocm-wheel-nightly", "vllm-rocm-wheel-gfx12x-patched"]
+    profiles:
+      [
+        "vllm-rocm-wheel",
+        "vllm-rocm-wheel-nightly",
+        "vllm-rocm-wheel-gfx12x-patched",
+      ]
     ports:
       - "8002:18888"
       - "4317:18889"
