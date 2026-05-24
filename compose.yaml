@@ -86,13 +86,13 @@ services:
       - .env/2xr9700.vllm.common
       - .env/otel.common
     environment:
-      # VLLM_ROCM_USE_AITER: "1"
-      # VLLM_ROCM_SHUFFLE_KV_CACHE_LAYOUT: "0"
-      # VLLM_ROCM_ALLOW_RDNA4_AITER_ATTENTION: "1"
-      # VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION: "1"
-      FLASH_ATTENTION_TRITON_AMD_ENABLE: "TRUE"
-      # FLASH_ATTENTION_TRITON_AMD_AUTOTUNE: "TRUE"
-      # VLLM_LOGGING_LEVEL: DEBUG
+      # - VLLM_ROCM_USE_AITER=1
+      # - VLLM_ROCM_SHUFFLE_KV_CACHE_LAYOUT=0
+      # - VLLM_ROCM_ALLOW_RDNA4_AITER_ATTENTION=1
+      # - VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION=1
+      - FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
+      # - FLASH_ATTENTION_TRITON_AMD_AUTOTUNE=TRUE
+      # - VLLM_LOGGING_LEVEL=DEBUG
     # --compilation-config '{"pass_config":{"fuse_norm_quant":false}}'
     # --enable-chunked-prefill
     # --max-num-batched-tokens 8192
@@ -164,8 +164,8 @@ services:
       - .env/2xr9700.vllm.common
       - .env/otel.common
     environment:
-      VLLM_ROCM_USE_AITER: "1"
-      VLLM_ROCM_SHUFFLE_KV_CACHE_LAYOUT: "0"
+      - VLLM_ROCM_USE_AITER=1
+      - VLLM_ROCM_SHUFFLE_KV_CACHE_LAYOUT=0
     command: >
       Qwen/Qwen3.6-27B-FP8
       --tokenizer Qwen/Qwen3.6-27B
@@ -226,17 +226,17 @@ services:
       - .env/2xr9700.vllm.common
       - .env/otel.common
     environment:
-      VLLM_ROCM_USE_AITER: "1"
-      VLLM_ROCM_USE_AITER_MHA: "0"
-      VLLM_ROCM_USE_AITER_MLA: "0"
-      VLLM_ROCM_USE_AITER_MOE: "0"
-      VLLM_ROCM_USE_AITER_LINEAR: "0"
-      VLLM_ROCM_USE_AITER_FP8BMM: "0"
-      VLLM_ROCM_USE_AITER_FP4BMM: "0"
-      VLLM_ROCM_USE_AITER_TRITON_GEMM: "0"
-      VLLM_ROCM_USE_AITER_RMSNORM: "0"
-      VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION: "1"
-      VLLM_ROCM_SHUFFLE_KV_CACHE_LAYOUT: "0"
+      - VLLM_ROCM_USE_AITER=1
+      - VLLM_ROCM_USE_AITER_MHA=0
+      - VLLM_ROCM_USE_AITER_MLA=0
+      - VLLM_ROCM_USE_AITER_MOE=0
+      - VLLM_ROCM_USE_AITER_LINEAR=0
+      - VLLM_ROCM_USE_AITER_FP8BMM=0
+      - VLLM_ROCM_USE_AITER_FP4BMM=0
+      - VLLM_ROCM_USE_AITER_TRITON_GEMM=0
+      - VLLM_ROCM_USE_AITER_RMSNORM=0
+      - VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION=1
+      - VLLM_ROCM_SHUFFLE_KV_CACHE_LAYOUT=0
     command: >
       Qwen/Qwen3.6-27B-FP8
       --tokenizer Qwen/Qwen3.6-27B
@@ -347,28 +347,28 @@ services:
       - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
       - ${HOME}/.cache/llama.cpp:/root/.cache/llama.cpp:Z
     environment:
-      LLAMA_ARG_HOST: "0.0.0.0"
-      LLAMA_ARG_PORT: "8000"
-      LLAMA_API_KEY: "sk-empty"
-      LLAMA_ARG_ALIAS: "qwen3.6-27b-gguf"
-      LLAMA_ARG_UI: "false"
+      - LLAMA_ARG_HOST=0.0.0.0
+      - LLAMA_ARG_PORT=8000
+      - LLAMA_API_KEY=sk-empty
+      - LLAMA_ARG_ALIAS=qwen3.6-27b-gguf
+      - LLAMA_ARG_UI=false
 
-      LLAMA_ARG_HF_REPO: "unsloth/Qwen3.6-27B-MTP-GGUF:Q8_0"
+      - LLAMA_ARG_HF_REPO=unsloth/Qwen3.6-27B-MTP-GGUF:Q8_0
 
-      LLAMA_ARG_CTX_SIZE: "128000"
+      - LLAMA_ARG_CTX_SIZE=128000
 
       # GPU/offload
-      HIP_VISIBLE_DEVICES: "0,1"
-      ROCR_VISIBLE_DEVICES: "0,1"
-      CUDA_VISIBLE_DEVICES: "0,1"
-      # LLAMA_ARG_TENSOR_SPLIT: "1,1"
+      - HIP_VISIBLE_DEVICES=0,1
+      - ROCR_VISIBLE_DEVICES=0,1
+      - CUDA_VISIBLE_DEVICES=0,1
+      # - LLAMA_ARG_TENSOR_SPLIT=1,1
 
-      LLAMA_ARG_TEMPERATURE: "1.0"
-      LLAMA_ARG_TOP_P: "0.95"
-      LLAMA_ARG_TOP_K: "20"
-      LLAMA_ARG_MIN_P: "0.0"
-      LLAMA_ARG_PRESENCE_PENALTY: "0.0"
-      LLAMA_ARG_REPEAT_PENALTY: "1.0"
+      - LLAMA_ARG_TEMPERATURE=1.0
+      - LLAMA_ARG_TOP_P=0.95
+      - LLAMA_ARG_TOP_K=20
+      - LLAMA_ARG_MIN_P=0.0
+      - LLAMA_ARG_PRESENCE_PENALTY=0.0
+      - LLAMA_ARG_REPEAT_PENALTY=1.0
     command: >
       --spec-type draft-mtp --spec-draft-n-max 3
 
@@ -397,29 +397,29 @@ services:
       - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
       - ${HOME}/.cache/llama.cpp:/root/.cache/llama.cpp:Z
     environment:
-      LLAMA_ARG_HOST: "0.0.0.0"
-      LLAMA_ARG_PORT: "8000"
-      LLAMA_API_KEY: "sk-empty"
-      LLAMA_ARG_ALIAS: "qwen3.6-27b-gguf"
-      LLAMA_ARG_UI: "false"
+      - LLAMA_ARG_HOST=0.0.0.0
+      - LLAMA_ARG_PORT=8000
+      - LLAMA_API_KEY=sk-empty
+      - LLAMA_ARG_ALIAS=qwen3.6-27b-gguf
+      - LLAMA_ARG_UI=false
 
-      # LLAMA_ARG_HF_REPO: "unsloth/Qwen3.6-27B-MTP-GGUF:Q8_0"
-      LLAMA_ARG_HF_REPO: "unsloth/Qwen3.6-27B-GGUF:Q8_0"
+      # - LLAMA_ARG_HF_REPO=unsloth/Qwen3.6-27B-MTP-GGUF:Q8_0
+      - LLAMA_ARG_HF_REPO=unsloth/Qwen3.6-27B-GGUF:Q8_0
 
-      LLAMA_ARG_CTX_SIZE: "128000"
+      - LLAMA_ARG_CTX_SIZE=128000
 
       # GPU/offload
-      HIP_VISIBLE_DEVICES: "0,1"
-      ROCR_VISIBLE_DEVICES: "0,1"
-      CUDA_VISIBLE_DEVICES: "0,1"
-      # LLAMA_ARG_TENSOR_SPLIT: "1,1"
+      - HIP_VISIBLE_DEVICES=0,1
+      - ROCR_VISIBLE_DEVICES=0,1
+      - CUDA_VISIBLE_DEVICES=0,1
+      # - LLAMA_ARG_TENSOR_SPLIT=1,1
 
-      LLAMA_ARG_TEMPERATURE: "1.0"
-      LLAMA_ARG_TOP_P: "0.95"
-      LLAMA_ARG_TOP_K: "20"
-      LLAMA_ARG_MIN_P: "0.0"
-      LLAMA_ARG_PRESENCE_PENALTY: "0.0"
-      LLAMA_ARG_REPEAT_PENALTY: "1.0"
+      - LLAMA_ARG_TEMPERATURE=1.0
+      - LLAMA_ARG_TOP_P=0.95
+      - LLAMA_ARG_TOP_K=20
+      - LLAMA_ARG_MIN_P=0.0
+      - LLAMA_ARG_PRESENCE_PENALTY=0.0
+      - LLAMA_ARG_REPEAT_PENALTY=1.0
     # command: >
     #   --spec-type draft-mtp --spec-draft-n-max 2
 
@@ -429,10 +429,10 @@ services:
     ports:
       - "8001:3000"
     environment:
-      OPENAI_BASE_URL: "http://llm-backend:8000/v1"
-      OPENAI_API_KEY: "sk-empty"
-      COOKIE_SECURE: "false"
-      PUBLIC_ORIGIN: "http://hirose.local:8001"
+      - OPENAI_BASE_URL=http://llm-backend:8000/v1
+      - OPENAI_API_KEY=sk-empty
+      - COOKIE_SECURE=false
+      - PUBLIC_ORIGIN=http://hirose.local:8001
     volumes:
       - chat-ui-data:/data
 
@@ -445,7 +445,7 @@ services:
       - "4317:18889"
       - "4318:18890"
     environment:
-      ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
+      - ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS=true
     volumes:
       - aspire-dashboard-dp-keys:/home/app/.aspnet/DataProtection-Keys
 
