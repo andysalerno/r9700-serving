@@ -332,6 +332,7 @@ services:
 
       --attention-backend ROCM_AITER_UNIFIED_ATTN
       --compilation-config '{"pass_config":{"fuse_norm_quant":false,"fuse_act_quant":false,"fuse_allreduce_rms":false,"fuse_mla_dual_rms_norm":false}}'
+      --speculative-config '{"method": "mtp", "num_speculative_tokens": 2}'
 
       --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
       --collect-detailed-traces=all
