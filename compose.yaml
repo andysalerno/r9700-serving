@@ -123,7 +123,7 @@ services:
       - DEVICE_LIB_PATH=/opt/vllm/lib/python3.12/site-packages/_rocm_sdk_devel/lib/llvm/amdgcn/bitcode
       - CPATH=/opt/vllm/lib/python3.12/site-packages/_rocm_sdk_devel/include
       - LIBRARY_PATH=/opt/vllm/lib/python3.12/site-packages/_rocm_sdk_devel/lib
-      # - GPU_MAX_HW_QUEUES=1
+      - GPU_MAX_HW_QUEUES=1
     command: >
       Qwen/Qwen3.6-27B-FP8
       --tokenizer Qwen/Qwen3.6-27B
