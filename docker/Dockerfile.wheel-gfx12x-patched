@@ -1,4 +1,4 @@
-# Patch an existing vLLM ROCm wheel image with the gfx12x/R9700 runtime changes.
+# Patch an existing vLLM ROCm nightly wheel image with the gfx12x/R9700 runtime changes.
 #
 # Build from the llmhost repo root:
 #   docker build -t localhost/vllm-rocm-wheel-gfx12x-patched \
