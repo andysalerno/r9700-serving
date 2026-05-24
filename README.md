@@ -105,6 +105,8 @@ Benchmark source files live in `benchmarks/`. Values below are mean `t/s` with t
 
 All benchmarks use the images from this repo and run on my machine with 2x R9700 and a Ryzen 9900X3D.
 
+**If you want to know what VLLM launch settings / env vars each benchmark corresponds to, just look in the benchmarks/ dir where the raw data lives - it includes a fully copy/paste of the state of the compose file at the time the benchmark was run.**
+
 ![Prompt-processing throughput by depth](benchmarks/benchmark_pp2048_tps.svg)
 
 ![Token-generation throughput by depth](benchmarks/benchmark_tg32_tps.svg)
