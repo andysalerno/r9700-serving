@@ -27,11 +27,7 @@ services:
 
     env_file:
       - .env/vllm.common
-    environment:
-      NCCL_SOCKET_IFNAME: "lo"
-      NCCL_PROTO: "Simple"
-      NCCL_P2P_DISABLE: "1"
-      NCCL_SHM_DISABLE: "0"
+      - .env/nccl-fix
     command: >
       vllm serve Qwen/Qwen3.6-27B-FP8
       --tokenizer Qwen/Qwen3.6-27B
@@ -58,7 +54,7 @@ services:
         GFX_ARCH: gfx1201
         PYTHON: python3.12
         VLLM_WHEEL_URL: https://wheels.vllm.ai/rocm/nightly/rocm722
-        VLLM_VERSION: 0.21.1rc1.dev236+g552bbe6f4.rocm722
+        VLLM_VERSION: 0.21.1rc1.dev262+g33d7cbe02.rocm722
         ROCM_SDK_CORE_VERSION: 7.13.0
         ROCM_SDK_LIBRARIES_VERSION: 7.13.0
         FLASH_ATTN_VERSION: 2.8.3
@@ -91,10 +87,6 @@ services:
       - .env/vllm.common
       - .env/otel.common
     environment:
-      # NCCL_SOCKET_IFNAME: "lo"
-      # NCCL_PROTO: "Simple"
-      # NCCL_P2P_DISABLE: "1"
-      # NCCL_SHM_DISABLE: "0"
       # VLLM_ROCM_USE_AITER: "1"
       # VLLM_ROCM_SHUFFLE_KV_CACHE_LAYOUT: "0"
       # VLLM_ROCM_ALLOW_RDNA4_AITER_ATTENTION: "1"
@@ -175,10 +167,6 @@ services:
       - .env/vllm.common
       - .env/otel.common
     environment:
-      # NCCL_SOCKET_IFNAME: "lo"
-      # NCCL_PROTO: "Simple"
-      # NCCL_P2P_DISABLE: "1"
-      # NCCL_SHM_DISABLE: "0"
       VLLM_ROCM_USE_AITER: "1"
       VLLM_ROCM_SHUFFLE_KV_CACHE_LAYOUT: "0"
       # FLASH_ATTENTION_TRITON_AMD_ENABLE: "TRUE"
@@ -270,6 +258,7 @@ services:
       VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION: "1"
       VLLM_ROCM_SHUFFLE_KV_CACHE_LAYOUT: "0"
 
+    # --compilation-config '{"pass_config":{"fuse_norm_quant":false,"fuse_act_quant":false,"fuse_allreduce_rms":false,"fuse_mla_dual_rms_norm":false}}'
     command: >
       Qwen/Qwen3.6-27B-FP8
       --tokenizer Qwen/Qwen3.6-27B
@@ -287,7 +276,6 @@ services:
       --gpu-memory-utilization 0.93
 
       --attention-backend ROCM_AITER_UNIFIED_ATTN
-      --compilation-config '{"pass_config":{"fuse_norm_quant":false,"fuse_act_quant":false,"fuse_allreduce_rms":false,"fuse_mla_dual_rms_norm":false}}'
       --speculative-config '{"method": "mtp", "num_speculative_tokens": 2}'
 
       --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces

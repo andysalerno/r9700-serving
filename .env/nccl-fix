@@ -1,0 +1,5 @@
+# NCCL workaround settings for vLLM compose services.
+NCCL_SOCKET_IFNAME=lo
+NCCL_PROTO=Simple
+NCCL_P2P_DISABLE=1
+NCCL_SHM_DISABLE=0
