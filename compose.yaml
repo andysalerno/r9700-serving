@@ -115,6 +115,7 @@ services:
       - VLLM_ROCM_USE_AITER_RMSNORM=0
       - VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION=1
       - VLLM_ROCM_SHUFFLE_KV_CACHE_LAYOUT=0
+      # - GPU_MAX_HW_QUEUES=1
     command: >
       Qwen/Qwen3.6-27B-FP8
       --tokenizer Qwen/Qwen3.6-27B
