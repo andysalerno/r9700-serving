@@ -25,18 +25,9 @@ services:
       - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
       - ./chat-templates/:/app/chat-templates:Z
 
+    env_file:
+      - .env/vllm.common
     environment:
-      # https://rocm.docs.amd.com/en/latest/how-to/rocm-for-ai/inference-optimization/vllm-optimization.html
-      HIP_VISIBLE_DEVICES: "0,1"
-      ROCR_VISIBLE_DEVICES: "0,1"
-      CUDA_VISIBLE_DEVICES: "0,1"
-      HIP_PLATFORM: "amd"
-      VLLM_TARGET_DEVICE: "rocm"
-      VLLM_ROCM_GCN_ARCH: "gfx1201"
-      PYTORCH_ROCM_ARCH: "gfx1201"
-      HIP_ARCHITECTURES: "gfx1201"
-      AMDGPU_TARGETS: "gfx1201"
-      GPU_ARCHS: "gfx1201"
       NCCL_SOCKET_IFNAME: "lo"
       NCCL_PROTO: "Simple"
       NCCL_P2P_DISABLE: "1"
@@ -96,18 +87,10 @@ services:
       - ./chat-templates/:/app/chat-templates:Z
       - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
 
+    env_file:
+      - .env/vllm.common
+      - .env/otel.common
     environment:
-      # https://rocm.docs.amd.com/en/latest/how-to/rocm-for-ai/inference-optimization/vllm-optimization.html
-      HIP_VISIBLE_DEVICES: "0,1"
-      ROCR_VISIBLE_DEVICES: "0,1"
-      CUDA_VISIBLE_DEVICES: "0,1"
-      HIP_PLATFORM: "amd"
-      VLLM_TARGET_DEVICE: "rocm"
-      VLLM_ROCM_GCN_ARCH: "gfx1201"
-      PYTORCH_ROCM_ARCH: "gfx1201"
-      HIP_ARCHITECTURES: "gfx1201"
-      AMDGPU_TARGETS: "gfx1201"
-      GPU_ARCHS: "gfx1201"
       # NCCL_SOCKET_IFNAME: "lo"
       # NCCL_PROTO: "Simple"
       # NCCL_P2P_DISABLE: "1"
@@ -119,10 +102,6 @@ services:
       FLASH_ATTENTION_TRITON_AMD_ENABLE: "TRUE"
       # FLASH_ATTENTION_TRITON_AMD_AUTOTUNE: "TRUE"
       # VLLM_LOGGING_LEVEL: DEBUG
-      OTEL_SERVICE_NAME: "vllm-rocm-wheel"
-      OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: "http/protobuf"
-      OTEL_EXPORTER_OTLP_TRACES_INSECURE: "true"
-      OTEL_RESOURCE_ATTRIBUTES: "service.namespace=llmhost,deployment.environment=local,host.name=hirose"
     # --compilation-config '{"pass_config":{"fuse_norm_quant":false}}'
     # --enable-chunked-prefill
     # --max-num-batched-tokens 8192
@@ -192,18 +171,10 @@ services:
       - ./chat-templates/:/app/chat-templates:Z
       - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
 
+    env_file:
+      - .env/vllm.common
+      - .env/otel.common
     environment:
-      # https://rocm.docs.amd.com/en/latest/how-to/rocm-for-ai/inference-optimization/vllm-optimization.html
-      HIP_VISIBLE_DEVICES: "0,1"
-      ROCR_VISIBLE_DEVICES: "0,1"
-      CUDA_VISIBLE_DEVICES: "0,1"
-      HIP_PLATFORM: "amd"
-      VLLM_TARGET_DEVICE: "rocm"
-      VLLM_ROCM_GCN_ARCH: "gfx1201"
-      PYTORCH_ROCM_ARCH: "gfx1201"
-      HIP_ARCHITECTURES: "gfx1201"
-      AMDGPU_TARGETS: "gfx1201"
-      GPU_ARCHS: "gfx1201"
       # NCCL_SOCKET_IFNAME: "lo"
       # NCCL_PROTO: "Simple"
       # NCCL_P2P_DISABLE: "1"
@@ -213,10 +184,6 @@ services:
       # FLASH_ATTENTION_TRITON_AMD_ENABLE: "TRUE"
       # FLASH_ATTENTION_TRITON_AMD_AUTOTUNE: "TRUE"
       # VLLM_LOGGING_LEVEL: DEBUG
-      OTEL_SERVICE_NAME: "vllm-rocm-wheel"
-      OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: "http/protobuf"
-      OTEL_EXPORTER_OTLP_TRACES_INSECURE: "true"
-      OTEL_RESOURCE_ATTRIBUTES: "service.namespace=llmhost,deployment.environment=local,host.name=hirose"
 
       # TRITON_CACHE_DIR: "/root/.cache/triton"
       # TORCHINDUCTOR_CACHE_DIR: "/root/.cache/torch/inductor"
@@ -287,17 +254,10 @@ services:
       - ./chat-templates/:/app/chat-templates:Z
       - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
 
+    env_file:
+      - .env/vllm.common
+      - .env/otel.common
     environment:
-      HIP_VISIBLE_DEVICES: "0,1"
-      ROCR_VISIBLE_DEVICES: "0,1"
-      CUDA_VISIBLE_DEVICES: "0,1"
-      HIP_PLATFORM: "amd"
-      VLLM_TARGET_DEVICE: "rocm"
-      VLLM_ROCM_GCN_ARCH: "gfx1201"
-      PYTORCH_ROCM_ARCH: "gfx1201"
-      HIP_ARCHITECTURES: "gfx1201"
-      AMDGPU_TARGETS: "gfx1201"
-      GPU_ARCHS: "gfx1201"
       VLLM_ROCM_USE_AITER: "1"
       VLLM_ROCM_USE_AITER_MHA: "0"
       VLLM_ROCM_USE_AITER_MLA: "0"
@@ -309,10 +269,6 @@ services:
       VLLM_ROCM_USE_AITER_RMSNORM: "0"
       VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION: "1"
       VLLM_ROCM_SHUFFLE_KV_CACHE_LAYOUT: "0"
-      OTEL_SERVICE_NAME: "vllm-rocm-wheel-gfx12x-patched"
-      OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: "http/protobuf"
-      OTEL_EXPORTER_OTLP_TRACES_INSECURE: "true"
-      OTEL_RESOURCE_ATTRIBUTES: "service.namespace=llmhost,deployment.environment=local,host.name=hirose"
 
     command: >
       Qwen/Qwen3.6-27B-FP8

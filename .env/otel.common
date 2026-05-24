@@ -1,0 +1,5 @@
+# Common OpenTelemetry exporter settings for traced vLLM compose services.
+OTEL_SERVICE_NAME=vllm
+OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf
+OTEL_EXPORTER_OTLP_TRACES_INSECURE=true
+OTEL_RESOURCE_ATTRIBUTES=service.namespace=llmhost,deployment.environment=local,host.name=hirose
