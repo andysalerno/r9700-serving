@@ -1,4 +1,8 @@
 # NCCL workaround settings for vLLM compose services.
+# See:
+# - https://github.com/vllm-project/vllm/issues/41964
+# - https://github.com/vllm-project/vllm/issues/40980
+# - https://github.com/ROCm/ROCm/issues/5706
 NCCL_SOCKET_IFNAME=lo
 NCCL_PROTO=Simple
 NCCL_P2P_DISABLE=1
