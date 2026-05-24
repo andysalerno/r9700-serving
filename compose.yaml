@@ -1,7 +1,6 @@
 services:
   atom:
     profiles: ["atom"]
-    # image: docker.io/vllm/vllm-openai-rocm:nightly
     image: docker.io/rocm/atom-dev:vllm-latest
     container_name: atom-dev
     devices:
@@ -42,10 +41,11 @@ services:
       --gpu-memory-utilization 0.93
       --host 0.0.0.0
       --port 8000
+
   vllm-rocm-wheel-nightly:
     profiles: ["vllm-rocm-wheel-nightly"]
-    # image: docker.io/vllm/vllm-openai-rocm:nightly
     image: localhost/vllm-rocm-wheel-nightly
+    # image: docker.io/vllm/vllm-openai-rocm:nightly
     build:
       context: .
       dockerfile: docker/Dockerfile.wheel
@@ -82,7 +82,6 @@ services:
       - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
       - ./chat-templates/:/app/chat-templates:Z
       - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
-
     env_file:
       - .env/2xr9700.vllm.common
       - .env/otel.common
@@ -109,6 +108,11 @@ services:
       --enable-prefix-caching
       --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
       --gpu-memory-utilization 0.93
+      --host 0.0.0.0
+      --port 8000
+
+      --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
+      --collect-detailed-traces=all
 
       --dtype auto
       --max-num-seqs 4
@@ -117,11 +121,6 @@ services:
       --speculative-config '{"method": "mtp", "num_speculative_tokens": 3}'
       --attention-backend TRITON_ATTN
 
-      --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
-      --collect-detailed-traces=all
-
-      --host 0.0.0.0
-      --port 8000
   vllm-rocm-wheel:
     profiles: ["vllm-rocm-wheel"]
     image: localhost/vllm-rocm-wheel
@@ -134,8 +133,6 @@ services:
         PYTHON: python3.12
         VLLM_WHEEL_URL: https://wheels.vllm.ai/rocm
         VLLM_VERSION: 0.21.0+rocm722
-        # VLLM_WHEEL_URL: https://wheels.vllm.ai/rocm/nightly/rocm722
-        # VLLM_VERSION: 0.21.1rc1.dev88+g239b5ff30.rocm722
         ROCM_SDK_CORE_VERSION: 7.13.0
         ROCM_SDK_LIBRARIES_VERSION: 7.13.0
         FLASH_ATTN_VERSION: 2.8.3
@@ -169,46 +166,29 @@ services:
     environment:
       VLLM_ROCM_USE_AITER: "1"
       VLLM_ROCM_SHUFFLE_KV_CACHE_LAYOUT: "0"
-      # FLASH_ATTENTION_TRITON_AMD_ENABLE: "TRUE"
-      # FLASH_ATTENTION_TRITON_AMD_AUTOTUNE: "TRUE"
-      # VLLM_LOGGING_LEVEL: DEBUG
-
-      # TRITON_CACHE_DIR: "/root/.cache/triton"
-      # TORCHINDUCTOR_CACHE_DIR: "/root/.cache/torch/inductor"
-      # Qwen/Qwen3.6-35B-A3B-FP8
-      # --served-model-name qwen3.6-35b-a3b-fp8
-      # --speculative-config '{"method": "mtp", "num_speculative_tokens": 2}'
-      # --speculative-config '{"method": "ngram", "num_speculative_tokens": 4, "prompt_lookup_min": 2, "prompt_lookup_max": 5}'
-      # Qwen/Qwen3.6-27B-FP8
-      # btbtyler09/Qwen3.6-27B-GPTQ-8bit
-      # raydelossantos/Qwen3.6-27B-GPTQ-Int4
-      # QuantTrio/Qwen3.6-27B-AWQ
-      # --speculative-config '{"method": "mtp", "num_speculative_tokens": 2}'
     command: >
       Qwen/Qwen3.6-27B-FP8
       --tokenizer Qwen/Qwen3.6-27B
       --served-model-name qwen3.6-27b
       --chat-template /app/chat-templates/qwen36.jinja
-      --limit-mm-per-prompt '{"image": 0, "audio": 0, "video": 0}'
+      --limit-mm-per-prompt '{"image": 99, "audio": 0, "video": 0}'
       --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3
       --max-model-len 128000
       --enable-prefix-caching
+      --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
+      --gpu-memory-utilization 0.93
+      --host 0.0.0.0
+      --port 8000
+
+      --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
+      --collect-detailed-traces=all
+
       --dtype auto
       --max-num-seqs 4
       --kv-cache-dtype fp8
       -tp 2
-      --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
-      --gpu-memory-utilization 0.93
-
-      --attention-backend ROCM_AITER_FA
-
-      --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
-      --collect-detailed-traces=all
-      --enable-log-requests
-      --enable-logging-iteration-details
-
-      --host 0.0.0.0
-      --port 8000
+      --speculative-config '{"method": "mtp", "num_speculative_tokens": 3}'
+      --attention-backend TRITON_ATTN
 
   vllm-rocm-wheel-gfx12x-patched:
     profiles: ["vllm-rocm-wheel-gfx12x-patched"]
@@ -257,34 +237,29 @@ services:
       VLLM_ROCM_USE_AITER_RMSNORM: "0"
       VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION: "1"
       VLLM_ROCM_SHUFFLE_KV_CACHE_LAYOUT: "0"
-
-    # --compilation-config '{"pass_config":{"fuse_norm_quant":false,"fuse_act_quant":false,"fuse_allreduce_rms":false,"fuse_mla_dual_rms_norm":false}}'
     command: >
       Qwen/Qwen3.6-27B-FP8
       --tokenizer Qwen/Qwen3.6-27B
       --served-model-name qwen3.6-27b
       --chat-template /app/chat-templates/qwen36.jinja
-      --limit-mm-per-prompt '{"image": 0, "audio": 0, "video": 0}'
+      --limit-mm-per-prompt '{"image": 99, "audio": 0, "video": 0}'
       --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3
       --max-model-len 128000
       --enable-prefix-caching
+      --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
+      --gpu-memory-utilization 0.93
+      --host 0.0.0.0
+      --port 8000
+
+      --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
+      --collect-detailed-traces=all
+
       --dtype auto
       --max-num-seqs 4
       --kv-cache-dtype fp8
       -tp 2
-      --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
-      --gpu-memory-utilization 0.93
-
+      --speculative-config '{"method": "mtp", "num_speculative_tokens": 3}'
       --attention-backend ROCM_AITER_UNIFIED_ATTN
-      --speculative-config '{"method": "mtp", "num_speculative_tokens": 2}'
-
-      --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
-      --collect-detailed-traces=all
-      --enable-log-requests
-      --enable-logging-iteration-details
-
-      --host 0.0.0.0
-      --port 8000
 
   vllm-qwen36-27b-fp8-aml731:
     image: aml731/vllm-aiter:v0.20.2
