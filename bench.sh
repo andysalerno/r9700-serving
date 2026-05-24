@@ -1,0 +1,1 @@
+llama-benchy --base-url http://hirose.local:8000/v1 --depth 0 1024 2048 4096 8192 16384 32000 64000
