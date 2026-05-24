@@ -95,4 +95,6 @@ What it does, briefly:
 - Allows the ROCm AITER attention backend on gfx12x.
 - Forces the AITER flash-attention path to use unified attention on gfx12x.
 
+It does NOT modify any AITER code or inference-level logic, it just relaxes the restrictions in vllm attention-selection logic so that AITER will be treated as selectable for gfx1201. IMO this indicates vllm should be updated with a similar change, to let R9700 select an attention backend that runs much faster, though of course there may be bugs/downsides at the moment that would need to be fixed first (though I haven't encountered any).
+
 The patch is a local runtime patch against the installed vLLM wheel. When the nightly wheel changes, the patch will need to be refreshed if upstream files move or change.
