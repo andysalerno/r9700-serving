@@ -26,7 +26,7 @@ services:
       - ./chat-templates/:/app/chat-templates:Z
 
     env_file:
-      - .env/vllm.common
+      - .env/2xr9700.vllm.common
       - .env/nccl-fix
     command: >
       vllm serve Qwen/Qwen3.6-27B-FP8
@@ -84,7 +84,7 @@ services:
       - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
 
     env_file:
-      - .env/vllm.common
+      - .env/2xr9700.vllm.common
       - .env/otel.common
     environment:
       # VLLM_ROCM_USE_AITER: "1"
@@ -164,7 +164,7 @@ services:
       - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
 
     env_file:
-      - .env/vllm.common
+      - .env/2xr9700.vllm.common
       - .env/otel.common
     environment:
       VLLM_ROCM_USE_AITER: "1"
@@ -243,7 +243,7 @@ services:
       - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
 
     env_file:
-      - .env/vllm.common
+      - .env/2xr9700.vllm.common
       - .env/otel.common
     environment:
       VLLM_ROCM_USE_AITER: "1"
