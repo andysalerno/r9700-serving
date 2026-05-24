@@ -3,6 +3,7 @@
 # - https://github.com/vllm-project/vllm/issues/41964
 # - https://github.com/vllm-project/vllm/issues/40980
 # - https://github.com/ROCm/ROCm/issues/5706
+# Not needed when using latest rocm 7.13 (and possibly earlier) but necessary in vanilla vllm images with rocm ~7.2
 NCCL_SOCKET_IFNAME=lo
 NCCL_PROTO=Simple
 NCCL_P2P_DISABLE=1
