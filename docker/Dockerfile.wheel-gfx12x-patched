@@ -8,6 +8,48 @@
 ARG BASE_IMAGE=localhost/vllm-rocm-wheel
 FROM ${BASE_IMAGE}
 
+ARG GFX_TARGET=gfx120X-all
+ARG ROCM_SDK_DEVEL_VERSION=7.13.0
+
+ENV ROCM_PATH=${SP}/_rocm_sdk_devel
+ENV ROCM_HOME=${SP}/_rocm_sdk_devel
+ENV HIP_PATH=${SP}/_rocm_sdk_devel
+ENV HIP_HOME=${SP}/_rocm_sdk_devel
+ENV HIP_DEVICE_LIB_PATH=${SP}/_rocm_sdk_devel/lib/llvm/amdgcn/bitcode
+ENV DEVICE_LIB_PATH=${SP}/_rocm_sdk_devel/lib/llvm/amdgcn/bitcode
+ENV CPATH=${SP}/_rocm_sdk_devel/include:${CPATH}
+ENV LIBRARY_PATH=${SP}/_rocm_sdk_devel/lib:${LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=${SP}/_rocm_sdk_devel/lib:${LD_LIBRARY_PATH}
+
+RUN set -eux; \
+    PYTHON_BIN="$(command -v python || command -v python3)"; \
+    uv pip install --no-deps \
+        --index-url "https://repo.amd.com/rocm/whl/${GFX_TARGET}/" \
+        "rocm-sdk-devel==${ROCM_SDK_DEVEL_VERSION}"; \
+    "${PYTHON_BIN}" - <<'PY'
+import importlib.util
+import os
+import site
+import tarfile
+
+if importlib.util.find_spec("_rocm_sdk_devel") is not None:
+    raise SystemExit(0)
+
+site_packages = next(
+    (p for p in site.getsitepackages() if p.endswith("site-packages")),
+    site.getsitepackages()[0],
+)
+tar_path = os.path.join(site_packages, "rocm_sdk_devel", "_devel.tar")
+with tarfile.open(tar_path) as archive:
+    root = os.path.abspath(site_packages)
+    for member in archive.getmembers():
+        target = os.path.abspath(os.path.join(root, member.name))
+        if not target.startswith(root + os.sep):
+            raise RuntimeError(f"Unsafe ROCm SDK member path: {member.name}")
+    archive.extractall(root)
+os.remove(tar_path)
+PY
+
 COPY docker/patches/GFX12x_R9700_RUNTIME.patch /tmp/GFX12x_R9700_RUNTIME.patch
 
 RUN set -eux; \

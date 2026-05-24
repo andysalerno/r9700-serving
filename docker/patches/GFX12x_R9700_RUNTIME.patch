@@ -87,7 +87,7 @@ index 114d236f1..96ba5e8ca 100644
          from vllm._aiter_ops import rocm_aiter_ops
  
 -        if rocm_aiter_ops.is_enabled() and on_gfx9():
-+        if rocm_aiter_ops.is_enabled() and (on_gfx9() or on_gfx12x()):
++        if rocm_aiter_ops.is_mha_enabled() and (on_gfx9() or on_gfx12x()):
              logger.info_once("Using AITER Flash Attention backend for ViT model.")
              return AttentionBackendEnum.ROCM_AITER_FA
  
