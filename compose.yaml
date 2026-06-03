@@ -10,8 +10,8 @@ services:
         GFX_TARGET: gfx120X-all
         GFX_ARCH: gfx1201
         PYTHON: python3.12
-        VLLM_WHEEL_URL: https://wheels.vllm.ai/rocm/nightly/rocm722
-        VLLM_VERSION: 0.21.1rc1.dev315+g0b68f21e7.rocm722
+        VLLM_WHEEL_URL: https://wheels.vllm.ai/rocm/nightly/rocm723
+        VLLM_VERSION: 0.22.1rc1.dev105+g969aec4bc.rocm723
         ROCM_SDK_CORE_VERSION: 7.13.0
         ROCM_SDK_LIBRARIES_VERSION: 7.13.0
         FLASH_ATTN_VERSION: 2.8.3
@@ -29,8 +29,8 @@ services:
     ipc: host
     ports:
       - "8000:8000"
-    depends_on:
-      - aspire-dashboard
+    # depends_on:
+    #   - aspire-dashboard
     networks:
       default:
         aliases:
@@ -58,15 +58,14 @@ services:
       --host 0.0.0.0
       --port 8000
 
-      --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
-      --collect-detailed-traces=all
-
       --dtype auto
       --max-num-seqs 4
       --kv-cache-dtype fp8
       -tp 2
       --speculative-config '{"method": "mtp", "num_speculative_tokens": 3}'
       --attention-backend TRITON_ATTN
+    # --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
+    # --collect-detailed-traces=all
 
   vllm-rocm-wheel-gfx12x-patched:
     profiles: ["vllm-rocm-wheel-gfx12x-patched"]
@@ -89,8 +88,8 @@ services:
     ipc: host
     ports:
       - "8000:8000"
-    depends_on:
-      - aspire-dashboard
+    # depends_on:
+    #   - aspire-dashboard
     networks:
       default:
         aliases:
@@ -138,8 +137,6 @@ services:
       --host 0.0.0.0
       --port 8000
 
-      --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
-      --collect-detailed-traces=all
 
       --dtype auto
       --max-num-seqs 4
@@ -147,6 +144,8 @@ services:
       -tp 2
       --speculative-config '{"method": "mtp", "num_speculative_tokens": 3, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
       --attention-backend ROCM_AITER_UNIFIED_ATTN
+    # --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
+    # --collect-detailed-traces=all
 
   vllm-qwen36-27b-fp8-aml731:
     image: aml731/vllm-aiter:v0.20.2
@@ -279,8 +278,8 @@ services:
     ipc: host
     ports:
       - "8000:8000"
-    depends_on:
-      - aspire-dashboard
+    # depends_on:
+    #   - aspire-dashboard
     networks:
       default:
         aliases:
@@ -309,8 +308,6 @@ services:
       --host 0.0.0.0
       --port 8000
 
-      --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
-      --collect-detailed-traces=all
 
       --dtype auto
       --max-num-seqs 4
@@ -318,6 +315,8 @@ services:
       -tp 2
       --speculative-config '{"method": "mtp", "num_speculative_tokens": 3}'
       --attention-backend TRITON_ATTN
+    # --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
+    # --collect-detailed-traces=all
 
   ##########
   # llamacpp backends
@@ -447,9 +446,10 @@ services:
     container_name: aspire-dashboard
     profiles:
       [
-        "vllm-rocm-wheel",
-        "vllm-rocm-wheel-nightly",
-        "vllm-rocm-wheel-gfx12x-patched",
+        "disabled"
+        # "vllm-rocm-wheel",
+        # "vllm-rocm-wheel-nightly",
+        # "vllm-rocm-wheel-gfx12x-patched",
       ]
     ports:
       - "8002:18888"
