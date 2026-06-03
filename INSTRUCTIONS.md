@@ -32,5 +32,6 @@ A few final tips:
 - do not try to actually build vllm. Only use the repo in ~/repos/vllm as a way to iterate on the patch that will ultimately be applied in our dockerfile.
 - use "down" to bring the compose services down between each iteration, so there are none hanging around.
 - the patch you come up with should not involve lots of gpu programming, cuda kernels, etc etc. There should be some fix in the vllm logic that will correctly select the correct aiter pathway in the correct scenario to make the service come up and perform inference.
+- Bringing up vllm takes a loooong time! Like between 10 to even 15 mins! So be prepared to wait a lot, and don't give up and kill it unless there's really no output for more than 2 mins at a time.
 
 Go ahead. I will check your work when you're done.
