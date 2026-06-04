@@ -56,6 +56,35 @@ index ce4fc3cfb..8536e96fd 100644
                          IS_AITER_FOUND and   _______________|
                          cls._AITER_ENABLED   -----> Check by the logic in `is_enabled()`
  
+@@ -1414,6 +1414,15 @@ class rocm_aiter_ops:
+     def is_enabled(cls) -> bool:
+         return cls._AITER_ENABLED
+
++    @classmethod
++    @if_aiter_supported
++    def is_sampler_enabled(cls) -> bool:
++        from vllm.platforms.rocm import on_mi3xx
++
++        # AITER's sampler JIT does not support gfx12x/RDNA4, even though
++        # other AITER paths such as unified attention can run there.
++        return cls._AITER_ENABLED and on_mi3xx()
++
+     @classmethod
+     @if_aiter_supported
+     def is_linear_enabled(cls) -> bool:
+diff --git a/vllm/v1/sample/ops/topk_topp_sampler.py b/vllm/v1/sample/ops/topk_topp_sampler.py
+index f98b12a37..7cfbb7709 100644
+--- a/vllm/v1/sample/ops/topk_topp_sampler.py
++++ b/vllm/v1/sample/ops/topk_topp_sampler.py
+@@ -89,7 +89,7 @@ class TopKTopPSampler(nn.Module):
+                 self.forward = self.forward_native
+         elif (
+             logprobs_mode not in ("processed_logits", "processed_logprobs")
+-            and rocm_aiter_ops.is_enabled()
++            and rocm_aiter_ops.is_sampler_enabled()
+         ):
+             try:
+                 import aiter.ops.sampling  # noqa: F401
 diff --git a/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py b/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py
 index 0e31331e7..c08022aa6 100644
 --- a/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py
