@@ -441,6 +441,35 @@ services:
     volumes:
       - chat-ui-data:/data
 
+  chatui-hermes:
+    image: ghcr.io/huggingface/chat-ui-db:latest
+    container_name: chatui-hermes
+    ports:
+      - "8004:3000"
+    environment:
+      - OPENAI_BASE_URL=http://hermes-agent:8642/v1
+      - OPENAI_API_KEY=sk-empty
+      - COOKIE_SECURE=false
+      - PUBLIC_ORIGIN=http://hirose.local:8004
+    volumes:
+      - chat-ui-hermes-data:/data
+    depends_on:
+      -  hermes-agent
+
+  hermes-agent:
+    image: nousresearch/hermes-agent
+    environment:
+      - API_SERVER_ENABLED=true
+      - API_SERVER_KEY=sk-empty
+      - GATEWAY_ALLOW_ALL_USERS=true
+    volumes:
+      - ${HOME}/.hermes:/opt/data:Z
+    ports:
+      - "8005:8642"
+    depends_on:
+      - vllm-rocm-wheel-gfx12x-patched
+    command: gateway
+
   aspire-dashboard:
     image: mcr.microsoft.com/dotnet/aspire-dashboard:latest
     container_name: aspire-dashboard
@@ -462,4 +491,5 @@ services:
 
 volumes:
   chat-ui-data:
+  chat-ui-hermes-data:
   aspire-dashboard-dp-keys:
