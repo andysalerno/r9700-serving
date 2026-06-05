@@ -66,6 +66,7 @@ RUN set -eux; \
     fi; \
     "${PYTHON_BIN}" -m py_compile \
         vllm/_aiter_ops.py \
+        vllm/compilation/passes/fusion/rms_quant_fusion.py \
         vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py \
         vllm/platforms/rocm.py \
         vllm/v1/sample/ops/topk_topp_sampler.py \

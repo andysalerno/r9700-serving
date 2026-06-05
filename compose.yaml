@@ -11,7 +11,7 @@ services:
         GFX_ARCH: gfx1201
         PYTHON: python3.12
         VLLM_WHEEL_URL: https://wheels.vllm.ai/rocm/nightly/rocm723
-        VLLM_VERSION: 0.22.1rc1.dev116+g71df063c4.rocm723
+        VLLM_VERSION: 0.22.1rc1.dev192+g063ce98fb.rocm723
         ROCM_SDK_CORE_VERSION: 7.13.0
         ROCM_SDK_LIBRARIES_VERSION: 7.13.0
         FLASH_ATTN_VERSION: 2.8.3

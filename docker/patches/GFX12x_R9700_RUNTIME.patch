@@ -85,6 +85,59 @@ index f98b12a37..7cfbb7709 100644
          ):
              try:
                  import aiter.ops.sampling  # noqa: F401
+diff --git a/vllm/compilation/passes/fusion/rms_quant_fusion.py b/vllm/compilation/passes/fusion/rms_quant_fusion.py
+index e85149a87..90c33e12c 100644
+--- a/vllm/compilation/passes/fusion/rms_quant_fusion.py
++++ b/vllm/compilation/passes/fusion/rms_quant_fusion.py
+@@ -37,22 +37,45 @@ logger = init_logger(__name__)
+ FP8_DTYPE = current_platform.fp8_dtype()
+ FP4_DTYPE = torch.uint8
+ 
+ 
+ _RMS_NORM_OP = torch.ops.vllm_ir.rms_norm.default
++_FUSED_ADD_RMS_NORM_OP = torch.ops.vllm_ir.fused_add_rms_norm.default
+ 
+ 
+ # TODO: extend rmsnorm quant kernels to support mixed input/weight dtypes,
+ # and remove this check.
++def _node_dtype(node: object) -> torch.dtype | None:
++    if not isinstance(node, fx.Node):
++        return None
++    meta_val = node.meta.get("val")
++    return getattr(meta_val, "dtype", None)
++
++
+ def _rms_input_weight_dtype_match(match: pm.Match) -> bool:
+-    """Prevent fusion when rms_norm input and weight dtypes differ."""
++    """Prevent fusion when RMSNorm fused kernel dtype constraints are unmet."""
+     for node in match.nodes:
+         if node.target == _RMS_NORM_OP:
+             # rms_norm(x, weight, epsilon, variance_size)
+             x, weight = node.args[0], node.args[1]
+-            if isinstance(x, fx.Node) and isinstance(weight, fx.Node):
+-                return x.meta["val"].dtype == weight.meta["val"].dtype
++            x_dtype = _node_dtype(x)
++            weight_dtype = _node_dtype(weight)
++            if (
++                x_dtype is not None
++                and weight_dtype is not None
++                and x_dtype != weight_dtype
++            ):
++                return False
++        elif node.target == _FUSED_ADD_RMS_NORM_OP:
++            # fused_add_rms_norm(x, residual, weight, epsilon, variance_size)
++            x, residual, weight = node.args[0], node.args[1], node.args[2]
++            x_dtype = _node_dtype(x)
++            residual_dtype = _node_dtype(residual)
++            weight_dtype = _node_dtype(weight)
++            for dtype in (residual_dtype, weight_dtype):
++                if x_dtype is not None and dtype is not None and x_dtype != dtype:
++                    return False
+     return True
+ 
+ 
+ def empty_bf16(*args: Any, **kwargs: Any) -> torch.Tensor:
+     return torch.empty(
 diff --git a/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py b/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py
 index 0e31331e7..c08022aa6 100644
 --- a/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py
