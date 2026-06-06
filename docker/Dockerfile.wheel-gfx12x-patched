@@ -9,7 +9,10 @@ ARG BASE_IMAGE=localhost/vllm-rocm-wheel
 FROM ${BASE_IMAGE}
 
 ARG GFX_TARGET=gfx120X-all
-ARG ROCM_SDK_DEVEL_VERSION=7.13.0
+ARG ROCM_WHEEL_INDEX_URL=https://rocm.nightlies.amd.com/whl-multi-arch/
+# ARG ROCM_WHEEL_INDEX_URL=https://repo.amd.com/rocm/whl/gfx120X-all/
+ARG ROCM_SDK_DEVEL_VERSION=7.14.0a20260606
+# ARG ROCM_SDK_DEVEL_VERSION=7.13.0
 
 ENV ROCM_PATH=${SP}/_rocm_sdk_devel
 ENV ROCM_HOME=${SP}/_rocm_sdk_devel
@@ -19,12 +22,14 @@ ENV HIP_DEVICE_LIB_PATH=${SP}/_rocm_sdk_devel/lib/llvm/amdgcn/bitcode
 ENV DEVICE_LIB_PATH=${SP}/_rocm_sdk_devel/lib/llvm/amdgcn/bitcode
 ENV CPATH=${SP}/_rocm_sdk_devel/include:${CPATH}
 ENV LIBRARY_PATH=${SP}/_rocm_sdk_devel/lib:${LIBRARY_PATH}
+ENV HIPBLASLT_TENSILE_LIBPATH=${SP}/_rocm_sdk_libraries/lib/hipblaslt/library
+ENV ROCBLAS_TENSILE_LIBPATH=${SP}/_rocm_sdk_libraries/lib/rocblas/library
 ENV LD_LIBRARY_PATH=${SP}/_rocm_sdk_devel/lib:${LD_LIBRARY_PATH}
 
 RUN set -eux; \
     PYTHON_BIN="$(command -v python || command -v python3)"; \
     uv pip install --no-deps \
-        --index-url "https://repo.amd.com/rocm/whl/${GFX_TARGET}/" \
+        --index-url "${ROCM_WHEEL_INDEX_URL}" \
         "rocm-sdk-devel==${ROCM_SDK_DEVEL_VERSION}"; \
     "${PYTHON_BIN}" - <<'PY'
 import importlib.util

@@ -1,4 +1,4 @@
-### A Dockerfile for a usable vllm environment with latest ROCm (currently 7.13) and nightly vllm (built against ROCm 7.2.2)
+### A Dockerfile for a usable vllm environment with AMD ROCm nightlies for gfx1201 and vllm ROCm wheels.
 FROM ubuntu:24.04
 
 ARG GFX_TARGET=gfx120X-all
@@ -7,8 +7,16 @@ ARG PYTHON=python3.12
 ARG VLLM_WHEEL_URL=https://wheels.vllm.ai/rocm
 ARG VLLM_VERSION=0.21.0+rocm722
 ARG FLASH_ATTN_VERSION=2.8.3
-ARG ROCM_SDK_CORE_VERSION=7.13.0
-ARG ROCM_SDK_LIBRARIES_VERSION=7.13.0
+ARG ROCM_WHEEL_INDEX_URL=https://rocm.nightlies.amd.com/whl-multi-arch/
+# ARG ROCM_WHEEL_INDEX_URL=https://repo.amd.com/rocm/whl/gfx120X-all/
+ARG ROCM_SDK_CORE_VERSION=7.14.0a20260606
+# ARG ROCM_SDK_CORE_VERSION=7.13.0
+ARG ROCM_SDK_LIBRARIES_VERSION=7.14.0a20260606
+# ARG ROCM_SDK_LIBRARIES_VERSION=7.13.0
+ARG ROCM_SDK_LIBRARIES_PACKAGE=rocm-sdk-libraries
+# ARG ROCM_SDK_LIBRARIES_PACKAGE=rocm-sdk-libraries-gfx120X-all
+ARG ROCM_SDK_DEVICE_PACKAGE=rocm-sdk-device-gfx1201
+# ARG ROCM_SDK_DEVICE_PACKAGE=
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV VIRTUAL_ENV=/opt/vllm
@@ -41,9 +49,10 @@ RUN uv pip install \
 # The vLLM ROCm torch wheel expects ROCm userspace libraries at runtime; install
 # AMD's pip-packaged SDK libraries without letting them replace torch/vLLM.
 RUN uv pip install --no-deps \
-    --index-url https://repo.amd.com/rocm/whl/${GFX_TARGET}/ \
+    --index-url ${ROCM_WHEEL_INDEX_URL} \
     rocm-sdk-core==${ROCM_SDK_CORE_VERSION} \
-    rocm-sdk-libraries-gfx120X-all==${ROCM_SDK_LIBRARIES_VERSION} \
+    ${ROCM_SDK_LIBRARIES_PACKAGE}==${ROCM_SDK_LIBRARIES_VERSION} \
+    ${ROCM_SDK_DEVICE_PACKAGE:+${ROCM_SDK_DEVICE_PACKAGE}==${ROCM_SDK_LIBRARIES_VERSION}} \
     rocm-sdk-devel==${ROCM_SDK_CORE_VERSION} \
     && python - <<'PY'
 import os
@@ -76,7 +85,9 @@ ENV DEVICE_LIB_PATH=${SP}/_rocm_sdk_devel/lib/llvm/amdgcn/bitcode
 ENV CPATH=${SP}/_rocm_sdk_devel/include:${CPATH}
 ENV LIBRARY_PATH=${SP}/_rocm_sdk_devel/lib:${LIBRARY_PATH}
 ENV PYTHONPATH=${SP}/_rocm_sdk_core/share/amd_smi
-ENV LD_LIBRARY_PATH=${SP}/torch/lib:${SP}/_rocm_sdk_devel/lib:${SP}/_rocm_sdk_core/lib:${SP}/_rocm_sdk_core/lib/llvm/lib:${SP}/_rocm_sdk_core/lib/rocm_sysdeps/lib:${SP}/_rocm_sdk_core/lib/host-math/lib:${SP}/_rocm_sdk_libraries_gfx120X_all/lib:${LD_LIBRARY_PATH}
+ENV HIPBLASLT_TENSILE_LIBPATH=${SP}/_rocm_sdk_libraries/lib/hipblaslt/library
+ENV ROCBLAS_TENSILE_LIBPATH=${SP}/_rocm_sdk_libraries/lib/rocblas/library
+ENV LD_LIBRARY_PATH=${SP}/torch/lib:${SP}/_rocm_sdk_devel/lib:${SP}/_rocm_sdk_core/lib:${SP}/_rocm_sdk_core/lib/llvm/lib:${SP}/_rocm_sdk_core/lib/rocm_sysdeps/lib:${SP}/_rocm_sdk_core/lib/host-math/lib:${SP}/_rocm_sdk_libraries/lib:${SP}/_rocm_sdk_libraries_gfx120X_all/lib:${LD_LIBRARY_PATH}
 
 ENV HIP_PLATFORM=amd \
     VLLM_TARGET_DEVICE=rocm \

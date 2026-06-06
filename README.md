@@ -13,7 +13,7 @@ Main profiles in `compose.yaml`:
 
 | Profile | What it runs |
 | --- | --- |
-| `vllm-rocm-wheel-nightly` | Nightly vllm in a container with latest ROCm (currently 7.13). Uses Triton, update `--attention-backend` to try ROCM_ATTN. |
+| `vllm-rocm-wheel-nightly` | Nightly vllm in a container with AMD ROCm nightlies for gfx1201 (currently 7.14.0a20260606). Uses Triton, update `--attention-backend` to try ROCM_ATTN. |
 | `vllm-rocm-wheel-gfx12x-patched` | Builds from the nightly image, applies the custom gfx12x/R9700 patch, and runs AITER unified attention. |
 | `vllm-rocm-wheel` | Builds a pinned non-nightly vLLM ROCm wheel image. |
 | `vllm-aml` | Runs the external `aml731/vllm-aiter` image. Note: I can't vet the contents of this container, as it's not mine, but it indeed is very fast and also enables unified attention |
@@ -64,6 +64,16 @@ https://wheels.vllm.ai/rocm/nightly/rocm722/vllm
 ```
 
 Copy the current vLLM version from that directory and paste it into the `VLLM_VERSION` build arg for `vllm-rocm-wheel-nightly` in `compose.yaml`.
+
+## Updating nightly ROCm SDK wheels
+
+The ROCm SDK wheels come from:
+
+```text
+https://rocm.nightlies.amd.com/whl-multi-arch/
+```
+
+For gfx1201, keep `ROCM_SDK_CORE_VERSION`, `ROCM_SDK_LIBRARIES_VERSION`, and `ROCM_SDK_DEVEL_VERSION` on the same nightly version. The old stable ROCm wheel index and 7.13 package names are left commented next to the active build args in `compose.yaml` and the Dockerfiles.
 
 ## Custom gfx12x/R9700 patch
 
