@@ -12,17 +12,13 @@ services:
         PYTHON: python3.12
         VLLM_WHEEL_URL: https://wheels.vllm.ai/rocm/nightly/rocm723
         VLLM_VERSION: 0.22.1rc1.dev237+gfa27d4e9c.rocm723
-        ROCM_WHEEL_INDEX_URL: https://rocm.nightlies.amd.com/whl-multi-arch/
-        ROCM_SDK_CORE_VERSION: 7.14.0a20260606
-        ROCM_SDK_LIBRARIES_VERSION: 7.14.0a20260606
-        ROCM_SDK_LIBRARIES_PACKAGE: rocm-sdk-libraries
-        ROCM_SDK_DEVICE_PACKAGE: rocm-sdk-device-gfx1201
+        ROCM_WHEEL_INDEX_URL: "${ROCM_WHEEL_INDEX_URL-https://rocm.nightlies.amd.com/whl-multi-arch/}"
+        ROCM_SDK_CORE_VERSION: "${ROCM_SDK_CORE_VERSION-7.14.0a20260606}"
+        ROCM_SDK_LIBRARIES_VERSION: "${ROCM_SDK_LIBRARIES_VERSION-7.14.0a20260606}"
+        ROCM_SDK_LIBRARIES_PACKAGE: "${ROCM_SDK_LIBRARIES_PACKAGE-rocm-sdk-libraries}"
+        ROCM_SDK_DEVICE_PACKAGE: "${ROCM_SDK_DEVICE_PACKAGE-rocm-sdk-device-gfx1201}"
+        ROCM_SDK_LIBRARIES_DIR: "${ROCM_SDK_LIBRARIES_DIR-_rocm_sdk_libraries}"
         FLASH_ATTN_VERSION: 2.8.3
-        # ROCM_WHEEL_INDEX_URL: https://repo.amd.com/rocm/whl/gfx120X-all/
-        # ROCM_SDK_CORE_VERSION: 7.13.0
-        # ROCM_SDK_LIBRARIES_VERSION: 7.13.0
-        # ROCM_SDK_LIBRARIES_PACKAGE: rocm-sdk-libraries-gfx120X-all
-        # ROCM_SDK_DEVICE_PACKAGE: ""
     container_name: vllm-rocm-wheel-nightly
     devices:
       - /dev/kfd:/dev/kfd
@@ -83,10 +79,9 @@ services:
       dockerfile: docker/Dockerfile.wheel-gfx12x-patched
       args:
         BASE_IMAGE: localhost/vllm-rocm-wheel-nightly
-        ROCM_WHEEL_INDEX_URL: https://rocm.nightlies.amd.com/whl-multi-arch/
-        ROCM_SDK_DEVEL_VERSION: 7.14.0a20260606
-        # ROCM_WHEEL_INDEX_URL: https://repo.amd.com/rocm/whl/gfx120X-all/
-        # ROCM_SDK_DEVEL_VERSION: 7.13.0
+        ROCM_WHEEL_INDEX_URL: "${ROCM_WHEEL_INDEX_URL-https://rocm.nightlies.amd.com/whl-multi-arch/}"
+        ROCM_SDK_DEVEL_VERSION: "${ROCM_SDK_DEVEL_VERSION-7.14.0a20260606}"
+        ROCM_SDK_LIBRARIES_DIR: "${ROCM_SDK_LIBRARIES_DIR-_rocm_sdk_libraries}"
     container_name: vllm-rocm-wheel-gfx12x-patched
     devices:
       - /dev/kfd:/dev/kfd
@@ -134,8 +129,9 @@ services:
       - DEVICE_LIB_PATH=/opt/vllm/lib/python3.12/site-packages/_rocm_sdk_devel/lib/llvm/amdgcn/bitcode
       - CPATH=/opt/vllm/lib/python3.12/site-packages/_rocm_sdk_devel/include
       - LIBRARY_PATH=/opt/vllm/lib/python3.12/site-packages/_rocm_sdk_devel/lib
-      - HIPBLASLT_TENSILE_LIBPATH=/opt/vllm/lib/python3.12/site-packages/_rocm_sdk_libraries/lib/hipblaslt/library
-      - ROCBLAS_TENSILE_LIBPATH=/opt/vllm/lib/python3.12/site-packages/_rocm_sdk_libraries/lib/rocblas/library
+      # HIPBLASLT_TENSILE_LIBPATH and ROCBLAS_TENSILE_LIBPATH are baked into
+      # the image from ROCM_SDK_LIBRARIES_DIR so env.rocm713/env.rocm714 can
+      # switch the ROCm SDK layout without runtime path overrides here.
       - GPU_MAX_HW_QUEUES=1
       # - VLLM_LOGGING_LEVEL=DEBUG
       # - VLLM_USE_NCCL_SYMM_MEM=1
@@ -279,17 +275,13 @@ services:
         PYTHON: python3.12
         VLLM_WHEEL_URL: https://wheels.vllm.ai/rocm
         VLLM_VERSION: 0.21.0+rocm722
-        ROCM_WHEEL_INDEX_URL: https://rocm.nightlies.amd.com/whl-multi-arch/
-        ROCM_SDK_CORE_VERSION: 7.14.0a20260606
-        ROCM_SDK_LIBRARIES_VERSION: 7.14.0a20260606
-        ROCM_SDK_LIBRARIES_PACKAGE: rocm-sdk-libraries
-        ROCM_SDK_DEVICE_PACKAGE: rocm-sdk-device-gfx1201
+        ROCM_WHEEL_INDEX_URL: "${ROCM_WHEEL_INDEX_URL-https://rocm.nightlies.amd.com/whl-multi-arch/}"
+        ROCM_SDK_CORE_VERSION: "${ROCM_SDK_CORE_VERSION-7.14.0a20260606}"
+        ROCM_SDK_LIBRARIES_VERSION: "${ROCM_SDK_LIBRARIES_VERSION-7.14.0a20260606}"
+        ROCM_SDK_LIBRARIES_PACKAGE: "${ROCM_SDK_LIBRARIES_PACKAGE-rocm-sdk-libraries}"
+        ROCM_SDK_DEVICE_PACKAGE: "${ROCM_SDK_DEVICE_PACKAGE-rocm-sdk-device-gfx1201}"
+        ROCM_SDK_LIBRARIES_DIR: "${ROCM_SDK_LIBRARIES_DIR-_rocm_sdk_libraries}"
         FLASH_ATTN_VERSION: 2.8.3
-        # ROCM_WHEEL_INDEX_URL: https://repo.amd.com/rocm/whl/gfx120X-all/
-        # ROCM_SDK_CORE_VERSION: 7.13.0
-        # ROCM_SDK_LIBRARIES_VERSION: 7.13.0
-        # ROCM_SDK_LIBRARIES_PACKAGE: rocm-sdk-libraries-gfx120X-all
-        # ROCM_SDK_DEVICE_PACKAGE: ""
     container_name: vllm-rocm-wheel
     devices:
       - /dev/kfd:/dev/kfd
