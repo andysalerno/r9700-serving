@@ -76,5 +76,6 @@ RUN set -eux; \
         vllm/compilation/passes/fusion/rms_quant_fusion.py \
         vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py \
         vllm/platforms/rocm.py \
+        vllm/v1/core/single_type_kv_cache_manager.py \
         vllm/v1/sample/ops/topk_topp_sampler.py \
         vllm/v1/attention/backends/rocm_aiter_fa.py

@@ -85,6 +85,22 @@ index f98b12a37..7cfbb7709 100644
          ):
              try:
                  import aiter.ops.sampling  # noqa: F401
+diff --git a/vllm/v1/core/single_type_kv_cache_manager.py b/vllm/v1/core/single_type_kv_cache_manager.py
+index e29919022..27d69d4c 100644
+--- a/vllm/v1/core/single_type_kv_cache_manager.py
++++ b/vllm/v1/core/single_type_kv_cache_manager.py
+@@ -992,5 +992,11 @@ class MambaManager(SingleTypeKVCacheManager):
+         block_size = kv_cache_spec.block_size
+         max_num_blocks = max_length // block_size
++        if drop_eagle_block and max_num_blocks > 0:
++            # Full-attention cache hit lookup matches one extra block and then
++            # drops that final block as it's only partially accepted. Mamba/GDN state
++            # blocks are [null, ..., state] so popping after a match removes the state
++            # Instead, we can only search up to the boundary (not include final)
++            max_num_blocks -= 1
+         # Search from right to left and early stop when a match is found.
+         for i in range(max_num_blocks - 1, -1, -1):
+             if cached_block := block_pool.get_cached_block(
 diff --git a/vllm/compilation/passes/fusion/rms_quant_fusion.py b/vllm/compilation/passes/fusion/rms_quant_fusion.py
 index 670349a08..90c33e12c 100644
 --- a/vllm/compilation/passes/fusion/rms_quant_fusion.py
