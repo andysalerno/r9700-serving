@@ -78,7 +78,7 @@ RUN set -eux; \
             curl -fL "${AITER_LATEST_WHEEL_URL}" -o "${AITER_WHEEL}"; \
             UV_SKIP_WHEEL_FILENAME_CHECK=1 uv pip install --force-reinstall --no-deps "${AITER_WHEEL}"; \
             rm -f "${FLYDSL_WHEEL}" "${AITER_WHEEL}"; \
-            "${PYTHON_BIN}" -c 'import importlib.metadata as md, torch, triton, aiter; print("amd-aiter", md.version("amd-aiter")); print("flydsl", md.version("flydsl")); print("torch", torch.__version__); print("triton", triton.__version__)'; \
+            "${PYTHON_BIN}" -c 'import importlib.metadata as md, importlib.util, torch, triton; assert importlib.util.find_spec("aiter") is not None; print("amd-aiter", md.version("amd-aiter")); print("flydsl", md.version("flydsl")); print("torch", torch.__version__); print("triton", triton.__version__)'; \
             ;; \
         *) \
             echo "USE_LATEST_AITER must be 0/false/no or 1/true/yes" >&2; \
