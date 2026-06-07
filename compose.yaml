@@ -67,6 +67,7 @@ services:
       --dtype auto
       --max-num-seqs 4
       --kv-cache-dtype fp8
+      --speculative-config '{"method": "mtp", "num_speculative_tokens": 3}'
       -tp 2
 
   vllm-rocm-wheel-gfx12x-patched:
