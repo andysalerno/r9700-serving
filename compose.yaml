@@ -190,6 +190,7 @@ services:
     env_file:
       - .env/2xr9700.vllm.common
       - .env/otel.common
+      - .env/nccl-fix
     # environment:
     #   - GPU_MAX_HW_QUEUES=1
     command: >
