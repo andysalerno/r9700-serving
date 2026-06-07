@@ -104,6 +104,8 @@ services:
       - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
       - ./chat-templates/:/app/chat-templates:Z
       - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
+      - ${HOME}/.cache/triton:/root/.cache/triton:Z
+      - ${HOME}/.cache/torchinductor:/root/.cache/torchinductor:Z
 
     env_file:
       - .env/2xr9700.vllm.common
@@ -149,13 +151,12 @@ services:
       --host 0.0.0.0
       --port 8000
 
-
       --dtype auto
       --max-num-seqs 4
       --kv-cache-dtype fp8
       -tp 2
-      --speculative-config '{"method": "mtp", "num_speculative_tokens": 3, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
       --attention-backend ROCM_AITER_UNIFIED_ATTN
+    # --speculative-config '{"method": "mtp", "num_speculative_tokens": 3, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
     # --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
     # --collect-detailed-traces=all
 
