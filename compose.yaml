@@ -81,6 +81,11 @@ services:
         ROCM_WHEEL_INDEX_URL: "${ROCM_WHEEL_INDEX_URL-https://rocm.nightlies.amd.com/whl-multi-arch/}"
         ROCM_SDK_DEVEL_VERSION: "${ROCM_SDK_DEVEL_VERSION-7.14.0a20260606}"
         ROCM_SDK_LIBRARIES_DIR: "${ROCM_SDK_LIBRARIES_DIR-_rocm_sdk_libraries}"
+        USE_LATEST_AITER: "${USE_LATEST_AITER-0}"
+        AITER_LATEST_WHEEL_URL:
+        AITER_LATEST_WHEEL_FILENAME:
+        AITER_LATEST_FLYDSL_WHEEL_URL:
+        AITER_LATEST_FLYDSL_WHEEL_FILENAME:
     container_name: vllm-rocm-wheel-gfx12x-patched
     devices:
       - /dev/kfd:/dev/kfd

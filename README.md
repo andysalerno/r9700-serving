@@ -59,6 +59,15 @@ The default when no `--env-file` is passed is `env.rocm714`. To switch back to
 the previous stable SDK wheel layout, use `--env-file env.rocm713` for the
 nightly build and any dependent patched build.
 
+If you have `just`, the common build shortcuts are:
+
+```sh
+just build-images-rocm714
+just build-images-rocm714-aiter-latest
+just build-patched-aiter-latest
+just up-aiter-latest
+```
+
 To stop the stack:
 
 ```sh
@@ -110,6 +119,20 @@ Use it with the `vllm-rocm-wheel-gfx12x-patched` profile:
 ```sh
 podman compose --profile vllm-rocm-wheel-nightly build
 podman compose --profile vllm-rocm-wheel-gfx12x-patched up --build
+```
+
+By default, the patched build keeps the AITER wheel bundled by the vLLM wheel
+index. To try AITER v0.1.15, pass the opt-in env file when building the patched
+image:
+
+```sh
+podman compose --env-file .env/aiter-latest.env --profile vllm-rocm-wheel-gfx12x-patched build
+```
+
+If also selecting a ROCm SDK env file, pass both env files, for example:
+
+```sh
+podman compose --env-file env.rocm714 --env-file .env/aiter-latest.env --profile vllm-rocm-wheel-gfx12x-patched build
 ```
 
 What it does, briefly:

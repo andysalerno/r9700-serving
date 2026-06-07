@@ -15,6 +15,13 @@ ARG ROCM_SDK_DEVEL_VERSION=7.14.0a20260606
 # ARG ROCM_SDK_DEVEL_VERSION=7.13.0
 ARG ROCM_SDK_LIBRARIES_DIR=_rocm_sdk_libraries
 # ARG ROCM_SDK_LIBRARIES_DIR=_rocm_sdk_libraries_gfx120X_all
+ARG USE_LATEST_AITER=0
+# vLLM's ROCm 7.2/7.3 wheel index currently uses torch 2.10; AITER's ROCm 7.1
+# v0.1.15 wheel is the torch-2.10 ABI build.
+ARG AITER_LATEST_WHEEL_URL=https://github.com/ROCm/aiter/releases/download/v0.1.15/amd_aiter-0.1.15%2Brocm7.1.manylinux.2.28-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+ARG AITER_LATEST_WHEEL_FILENAME=amd_aiter-0.1.15+rocm7.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+ARG AITER_LATEST_FLYDSL_WHEEL_URL=https://rocm.frameworks-devreleases.amd.com/whl-staging/gfx942-gfx950/flydsl-0.1.9.dev20260529%2Bd7ae22d-cp312-cp312-manylinux_2_27_x86_64.whl
+ARG AITER_LATEST_FLYDSL_WHEEL_FILENAME=flydsl-0.1.9.dev20260529+d7ae22d-cp312-cp312-manylinux_2_27_x86_64.whl
 
 ENV ROCM_PATH=${SP}/_rocm_sdk_devel
 ENV ROCM_HOME=${SP}/_rocm_sdk_devel
@@ -56,6 +63,28 @@ with tarfile.open(tar_path) as archive:
     archive.extractall(root)
 os.remove(tar_path)
 PY
+
+RUN set -eux; \
+    case "${USE_LATEST_AITER}" in \
+        0|false|FALSE|no|NO|"") \
+            echo "Keeping AITER from the base vLLM wheel image"; \
+            ;; \
+        1|true|TRUE|yes|YES) \
+            PYTHON_BIN="$(command -v python || command -v python3)"; \
+            FLYDSL_WHEEL="/tmp/${AITER_LATEST_FLYDSL_WHEEL_FILENAME}"; \
+            AITER_WHEEL="/tmp/${AITER_LATEST_WHEEL_FILENAME}"; \
+            curl -fL "${AITER_LATEST_FLYDSL_WHEEL_URL}" -o "${FLYDSL_WHEEL}"; \
+            uv pip install --force-reinstall --no-deps "${FLYDSL_WHEEL}"; \
+            curl -fL "${AITER_LATEST_WHEEL_URL}" -o "${AITER_WHEEL}"; \
+            uv pip install --force-reinstall --no-deps "${AITER_WHEEL}"; \
+            rm -f "${FLYDSL_WHEEL}" "${AITER_WHEEL}"; \
+            "${PYTHON_BIN}" -c 'import importlib.metadata as md, torch, triton, aiter; print("amd-aiter", md.version("amd-aiter")); print("flydsl", md.version("flydsl")); print("torch", torch.__version__); print("triton", triton.__version__)'; \
+            ;; \
+        *) \
+            echo "USE_LATEST_AITER must be 0/false/no or 1/true/yes" >&2; \
+            exit 1; \
+            ;; \
+    esac
 
 COPY docker/patches/GFX12x_R9700_RUNTIME.patch /tmp/GFX12x_R9700_RUNTIME.patch
 
