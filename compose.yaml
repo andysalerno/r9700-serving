@@ -186,13 +186,17 @@ services:
       - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
       - ./chat-templates/:/app/chat-templates:Z
       - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
+      - ${HOME}/.cache/triton:/root/.cache/triton:Z
+      - ${HOME}/.cache/torchinductor:/root/.cache/torchinductor:Z
 
     env_file:
       - .env/2xr9700.vllm.common
       - .env/otel.common
       - .env/nccl-fix
     environment:
-      - GPU_MAX_HW_QUEUES=1
+      - FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
+    # environment:
+    #   - GPU_MAX_HW_QUEUES=1
     command: >
       Qwen/Qwen3.6-27B-FP8
       --tokenizer Qwen/Qwen3.6-27B
