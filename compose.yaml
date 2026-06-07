@@ -216,6 +216,7 @@ services:
       --kv-cache-dtype fp8
       -tp 2
       --speculative-config '{"method": "mtp", "num_speculative_tokens": 3}'
+      --attention-backend TRITON_ATTN
     # --attention-backend ROCM_AITER_UNIFIED_ATTN
     # --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
     # --collect-detailed-traces=all
