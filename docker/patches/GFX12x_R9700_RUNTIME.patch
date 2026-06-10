@@ -170,6 +170,26 @@ index 0e31331e7..c08022aa6 100644
              p.is_cuda() and p.has_device_capability((8, 9))
          )
  
+diff --git a/vllm/utils/import_utils.py b/vllm/utils/import_utils.py
+index 4383472d6..a0ef8c34d 100644
+--- a/vllm/utils/import_utils.py
++++ b/vllm/utils/import_utils.py
+@@ -499,6 +499,15 @@ def has_triton_kernels() -> bool:
+ @cache
+ def has_tilelang() -> bool:
+     """Whether the optional `tilelang` package is available."""
++    # TileLang's bundled TVM library aborts during import on gfx12x/RDNA4.
++    # Treat it as unavailable there so ROCm MHC layers use their non-TileLang
++    # fallbacks instead of crashing during model module import.
++    gcn_arch = " ".join(
++        os.environ.get(name, "")
++        for name in ("VLLM_ROCM_GCN_ARCH", "GPU_ARCHS", "PYTORCH_ROCM_ARCH")
++    )
++    if "gfx12" in gcn_arch:
++        return False
+     return _has_module("tilelang")
+ 
+ 
 diff --git a/vllm/platforms/rocm.py b/vllm/platforms/rocm.py
 index 114d236f1..96ba5e8ca 100644
 --- a/vllm/platforms/rocm.py
@@ -204,6 +224,16 @@ index 5dbedc86b..2b88202b2 100644
  
      @classmethod
      def supports_non_causal(cls) -> bool:
+@@ -1196,8 +1196,8 @@ class AiterFlashAttentionImpl(AttentionImpl):
+                     else:
+                         # Non-uniform query lengths can appear in real serving
+                         # traffic (e.g. mixed datasets). Fall back to varlen
+                         # unified_attention instead of asserting.
+-                        from aiter.ops.triton.unified_attention import (
++                        from aiter.ops.triton.attention.unified_attention import (
+                             unified_attention,
+                         )
+ 
 @@ -1222,7 +1222,11 @@ class AiterFlashAttentionImpl(AttentionImpl):
                  # fall back to the unified_attention triton kernel which
                  # handles both correctly.
@@ -217,3 +247,25 @@ index 5dbedc86b..2b88202b2 100644
  
                  if use_unified_attention:
                      assert not rocm_aiter_ops.is_shuffle_kv_cache_enabled(), (
+@@ -1244,7 +1248,7 @@ class AiterFlashAttentionImpl(AttentionImpl):
+                         "unified_attention fallback with shuffle layout "
+                         "is not supported yet."
+                     )
+-                    from aiter.ops.triton.unified_attention import (
++                    from aiter.ops.triton.attention.unified_attention import (
+                         unified_attention,
+                     )
+ 
+diff --git a/vllm/v1/attention/backends/rocm_aiter_unified_attn.py b/vllm/v1/attention/backends/rocm_aiter_unified_attn.py
+index 7d6d44795..6c09f40f2 100644
+--- a/vllm/v1/attention/backends/rocm_aiter_unified_attn.py
++++ b/vllm/v1/attention/backends/rocm_aiter_unified_attn.py
+@@ -129,7 +129,7 @@ class RocmAiterUnifiedAttentionImpl(RocmAttentionImpl):
+         logger.info_once(
+             "Using aiter unified attention for RocmAiterUnifiedAttentionImpl"
+         )
+-        from aiter.ops.triton.unified_attention import unified_attention
++        from aiter.ops.triton.attention.unified_attention import unified_attention
+ 
+         self.unified_attention = unified_attention
+         self.supports_quant_query_input = True
