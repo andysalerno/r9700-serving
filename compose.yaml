@@ -5,11 +5,6 @@ x-vllm-full-cache-volumes: &vllm_full_cache_volumes
   - ${HOME}/.cache/triton:/root/.cache/triton:Z
   - ${HOME}/.cache/torchinductor:/root/.cache/torchinductor:Z
 
-x-vllm-cache-volumes: &vllm_cache_volumes
-  - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
-  - ./chat-templates/:/app/chat-templates:Z
-  - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
-
 x-llamacpp-cache-volumes: &llamacpp_cache_volumes
   - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
   - ${HOME}/.cache/llama.cpp:/root/.cache/llama.cpp:Z
@@ -245,7 +240,7 @@ services:
     devices:
       - /dev/kfd:/dev/kfd
       - /dev/dri:/dev/dri
-    volumes: *vllm_cache_volumes
+    volumes: *vllm_full_cache_volumes
     networks:
       default:
         aliases:
@@ -367,7 +362,7 @@ services:
       default:
         aliases:
           - llm-backend
-    volumes: *vllm_cache_volumes
+    volumes: *vllm_full_cache_volumes
 
     env_file:
       - .env/2xr9700.vllm.common
