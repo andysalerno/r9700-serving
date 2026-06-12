@@ -6,9 +6,11 @@
 #     -f docker/Dockerfile.wheel-gfx12x-patched .
 
 ARG BASE_IMAGE=localhost/vllm-rocm-wheel
+ARG GFX_ARCH=gfx1201
 FROM ${BASE_IMAGE}
 
 ARG GFX_TARGET=gfx120X-all
+ARG GFX_ARCH=gfx1201
 ARG ROCM_WHEEL_INDEX_URL=https://rocm.nightlies.amd.com/whl-multi-arch/
 # ARG ROCM_WHEEL_INDEX_URL=https://repo.amd.com/rocm/whl/gfx120X-all/
 ARG ROCM_SDK_DEVEL_VERSION=7.14.0a20260606
@@ -31,7 +33,7 @@ ENV HIP_DEVICE_LIB_PATH=${SP}/_rocm_sdk_devel/lib/llvm/amdgcn/bitcode
 ENV DEVICE_LIB_PATH=${SP}/_rocm_sdk_devel/lib/llvm/amdgcn/bitcode
 ENV CPATH=${SP}/_rocm_sdk_devel/include:${CPATH}
 ENV LIBRARY_PATH=${SP}/_rocm_sdk_devel/lib:${LIBRARY_PATH}
-ENV HIPBLASLT_TENSILE_LIBPATH=${SP}/${ROCM_SDK_LIBRARIES_DIR}/lib/hipblaslt/library
+ENV HIPBLASLT_TENSILE_LIBPATH=${SP}/${ROCM_SDK_LIBRARIES_DIR}/lib/hipblaslt/library/${GFX_ARCH}
 ENV ROCBLAS_TENSILE_LIBPATH=${SP}/${ROCM_SDK_LIBRARIES_DIR}/lib/rocblas/library
 ENV LD_LIBRARY_PATH=${SP}/_rocm_sdk_devel/lib:${LD_LIBRARY_PATH}
 

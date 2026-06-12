@@ -1,8 +1,8 @@
 diff --git a/vllm/_aiter_ops.py b/vllm/_aiter_ops.py
-index ce4fc3cfb..8536e96fd 100644
+index 1d75b7c76..2adfc5d3a 100644
 --- a/vllm/_aiter_ops.py
 +++ b/vllm/_aiter_ops.py
-@@ -66,7 +66,7 @@ class AiterCustomAllreduceProto(Protocol):
+@@ -91,7 +91,7 @@ class AiterCustomAllreduceProto(Protocol):
  def is_aiter_found_and_supported() -> bool:
      """Check if AITER library is available and platform supports it.
  
@@ -11,7 +11,7 @@ index ce4fc3cfb..8536e96fd 100644
      Does NOT check environment variables - that's handled by rocm_aiter_ops.is_enabled().
  
      This function determines if aiter CAN be used, not if it SHOULD be used.
-@@ -80,9 +80,9 @@ def is_aiter_found_and_supported() -> bool:
+@@ -105,9 +105,9 @@ def is_aiter_found_and_supported() -> bool:
      VLLM_ROCM_USE_AITER=0, while preventing unwanted JIT warnings for auto-discovery.
      """
      if current_platform.is_rocm() and IS_AITER_FOUND:
@@ -23,7 +23,7 @@ index ce4fc3cfb..8536e96fd 100644
      return False
  
  
-@@ -111,7 +111,7 @@ def _check_kernel_tuned(N: int, K: int, q_dtype_w: torch.dtype, csv_path: str) -
+@@ -136,7 +136,7 @@ def _check_kernel_tuned(N: int, K: int, q_dtype_w: torch.dtype, csv_path: str) -
  
  def if_aiter_supported(func: Callable) -> Callable:
      """Decorator that only executes the function if
@@ -32,7 +32,7 @@ index ce4fc3cfb..8536e96fd 100644
      """
  
      @functools.wraps(func)
-@@ -1226,7 +1226,7 @@ class rocm_aiter_ops:
+@@ -1437,7 +1437,7 @@ class rocm_aiter_ops:
  
      This class centralizes the import and registration of AITER ops,
      and provides a unified interface for checking if AITER is enabled.
@@ -41,7 +41,7 @@ index ce4fc3cfb..8536e96fd 100644
      architectures when aiter is installed.
  
      The class uses environment variables to control which features are enabled,
-@@ -1257,12 +1257,12 @@ class rocm_aiter_ops:
+@@ -1468,12 +1468,12 @@ class rocm_aiter_ops:
  
      Check Functions:
          All check functions (is_*_enabled) are decorated with @if_aiter_supported,
@@ -56,10 +56,10 @@ index ce4fc3cfb..8536e96fd 100644
                          IS_AITER_FOUND and   _______________|
                          cls._AITER_ENABLED   -----> Check by the logic in `is_enabled()`
  
-@@ -1414,6 +1414,15 @@ class rocm_aiter_ops:
+@@ -1624,6 +1624,15 @@ class rocm_aiter_ops:
      def is_enabled(cls) -> bool:
          return cls._AITER_ENABLED
-
+ 
 +    @classmethod
 +    @if_aiter_supported
 +    def is_sampler_enabled(cls) -> bool:
@@ -72,35 +72,6 @@ index ce4fc3cfb..8536e96fd 100644
      @classmethod
      @if_aiter_supported
      def is_linear_enabled(cls) -> bool:
-diff --git a/vllm/v1/sample/ops/topk_topp_sampler.py b/vllm/v1/sample/ops/topk_topp_sampler.py
-index f98b12a37..7cfbb7709 100644
---- a/vllm/v1/sample/ops/topk_topp_sampler.py
-+++ b/vllm/v1/sample/ops/topk_topp_sampler.py
-@@ -89,7 +89,7 @@ class TopKTopPSampler(nn.Module):
-                 self.forward = self.forward_native
-         elif (
-             logprobs_mode not in ("processed_logits", "processed_logprobs")
--            and rocm_aiter_ops.is_enabled()
-+            and rocm_aiter_ops.is_sampler_enabled()
-         ):
-             try:
-                 import aiter.ops.sampling  # noqa: F401
-diff --git a/vllm/v1/core/single_type_kv_cache_manager.py b/vllm/v1/core/single_type_kv_cache_manager.py
-index e29919022..27d69d4c 100644
---- a/vllm/v1/core/single_type_kv_cache_manager.py
-+++ b/vllm/v1/core/single_type_kv_cache_manager.py
-@@ -992,5 +992,11 @@ class MambaManager(SingleTypeKVCacheManager):
-         block_size = kv_cache_spec.block_size
-         max_num_blocks = max_length // block_size
-+        if drop_eagle_block and max_num_blocks > 0:
-+            # Full-attention cache hit lookup matches one extra block and then
-+            # drops that final block as it's only partially accepted. Mamba/GDN state
-+            # blocks are [null, ..., state] so popping after a match removes the state
-+            # Instead, we can only search up to the boundary (not include final)
-+            max_num_blocks -= 1
-         # Search from right to left and early stop when a match is found.
-         for i in range(max_num_blocks - 1, -1, -1):
-             if cached_block := block_pool.get_cached_block(
 diff --git a/vllm/compilation/passes/fusion/rms_quant_fusion.py b/vllm/compilation/passes/fusion/rms_quant_fusion.py
 index 670349a08..90c33e12c 100644
 --- a/vllm/compilation/passes/fusion/rms_quant_fusion.py
@@ -149,10 +120,10 @@ index 670349a08..90c33e12c 100644
  
  
 diff --git a/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py b/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py
-index 0e31331e7..c08022aa6 100644
+index 1f5724ac3..a341ebe6a 100644
 --- a/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py
 +++ b/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py
-@@ -761,13 +761,13 @@ class BatchedTritonExperts(mk.FusedMoEExpertsModular):
+@@ -758,13 +758,13 @@ class BatchedTritonExperts(mk.FusedMoEExpertsModular):
      ) -> bool:
          p = current_platform
          if p.is_rocm():
@@ -170,11 +141,24 @@ index 0e31331e7..c08022aa6 100644
              p.is_cuda() and p.has_device_capability((8, 9))
          )
  
+diff --git a/vllm/platforms/rocm.py b/vllm/platforms/rocm.py
+index 7f6d8794c..3e53002e8 100644
+--- a/vllm/platforms/rocm.py
++++ b/vllm/platforms/rocm.py
+@@ -625,7 +625,7 @@ class RocmPlatform(Platform):
+ 
+         from vllm._aiter_ops import rocm_aiter_ops
+ 
+-        if rocm_aiter_ops.is_enabled() and on_gfx9():
++        if rocm_aiter_ops.is_mha_enabled() and (on_gfx9() or on_gfx12x()):
+             logger.info_once("Using AITER Flash Attention backend for ViT model.")
+             return AttentionBackendEnum.ROCM_AITER_FA
+ 
 diff --git a/vllm/utils/import_utils.py b/vllm/utils/import_utils.py
-index 4383472d6..a0ef8c34d 100644
+index 043798a58..107b82bcb 100644
 --- a/vllm/utils/import_utils.py
 +++ b/vllm/utils/import_utils.py
-@@ -499,6 +499,15 @@ def has_triton_kernels() -> bool:
+@@ -500,6 +500,15 @@ def has_triton_kernels() -> bool:
  @cache
  def has_tilelang() -> bool:
      """Whether the optional `tilelang` package is available."""
@@ -190,24 +174,11 @@ index 4383472d6..a0ef8c34d 100644
      return _has_module("tilelang")
  
  
-diff --git a/vllm/platforms/rocm.py b/vllm/platforms/rocm.py
-index 114d236f1..96ba5e8ca 100644
---- a/vllm/platforms/rocm.py
-+++ b/vllm/platforms/rocm.py
-@@ -594,7 +594,7 @@ class RocmPlatform(Platform):
- 
-         from vllm._aiter_ops import rocm_aiter_ops
- 
--        if rocm_aiter_ops.is_enabled() and on_gfx9():
-+        if rocm_aiter_ops.is_mha_enabled() and (on_gfx9() or on_gfx12x()):
-             logger.info_once("Using AITER Flash Attention backend for ViT model.")
-             return AttentionBackendEnum.ROCM_AITER_FA
- 
 diff --git a/vllm/v1/attention/backends/rocm_aiter_fa.py b/vllm/v1/attention/backends/rocm_aiter_fa.py
-index 5dbedc86b..2b88202b2 100644
+index a9fa45deb..f92dcb9f9 100644
 --- a/vllm/v1/attention/backends/rocm_aiter_fa.py
 +++ b/vllm/v1/attention/backends/rocm_aiter_fa.py
-@@ -769,12 +769,12 @@ class AiterFlashAttentionBackend(AttentionBackend):
+@@ -768,12 +768,12 @@ class AiterFlashAttentionBackend(AttentionBackend):
  
      @classmethod
      def supports_compute_capability(cls, capability: DeviceCapability) -> bool:
@@ -224,8 +195,7 @@ index 5dbedc86b..2b88202b2 100644
  
      @classmethod
      def supports_non_causal(cls) -> bool:
-@@ -1196,8 +1196,8 @@ class AiterFlashAttentionImpl(AttentionImpl):
-                     else:
+@@ -1196,7 +1196,7 @@ class AiterFlashAttentionImpl(AttentionImpl):
                          # Non-uniform query lengths can appear in real serving
                          # traffic (e.g. mixed datasets). Fall back to varlen
                          # unified_attention instead of asserting.
@@ -234,7 +204,7 @@ index 5dbedc86b..2b88202b2 100644
                              unified_attention,
                          )
  
-@@ -1222,7 +1222,11 @@ class AiterFlashAttentionImpl(AttentionImpl):
+@@ -1234,14 +1234,18 @@ class AiterFlashAttentionImpl(AttentionImpl):
                  # fall back to the unified_attention triton kernel which
                  # handles both correctly.
                  _MIN_HEAD_SIZE_FOR_LL4MI = 64
@@ -247,7 +217,6 @@ index 5dbedc86b..2b88202b2 100644
  
                  if use_unified_attention:
                      assert not rocm_aiter_ops.is_shuffle_kv_cache_enabled(), (
-@@ -1244,7 +1248,7 @@ class AiterFlashAttentionImpl(AttentionImpl):
                          "unified_attention fallback with shuffle layout "
                          "is not supported yet."
                      )
@@ -257,7 +226,7 @@ index 5dbedc86b..2b88202b2 100644
                      )
  
 diff --git a/vllm/v1/attention/backends/rocm_aiter_unified_attn.py b/vllm/v1/attention/backends/rocm_aiter_unified_attn.py
-index 7d6d44795..6c09f40f2 100644
+index 984fc20ec..de4805e35 100644
 --- a/vllm/v1/attention/backends/rocm_aiter_unified_attn.py
 +++ b/vllm/v1/attention/backends/rocm_aiter_unified_attn.py
 @@ -129,7 +129,7 @@ class RocmAiterUnifiedAttentionImpl(RocmAttentionImpl):
@@ -269,3 +238,33 @@ index 7d6d44795..6c09f40f2 100644
  
          self.unified_attention = unified_attention
          self.supports_quant_query_input = True
+diff --git a/vllm/v1/core/single_type_kv_cache_manager.py b/vllm/v1/core/single_type_kv_cache_manager.py
+index 478effcd7..2e764d668 100644
+--- a/vllm/v1/core/single_type_kv_cache_manager.py
++++ b/vllm/v1/core/single_type_kv_cache_manager.py
+@@ -991,6 +991,12 @@ class MambaManager(SingleTypeKVCacheManager):
+ 
+         block_size = kv_cache_spec.block_size
+         max_num_blocks = max_length // block_size
++        if drop_eagle_block and max_num_blocks > 0:
++            # Full-attention cache hit lookup matches one extra block and then
++            # drops that final block as it's only partially accepted. Mamba/GDN
++            # state blocks are [null, ..., state], so popping after a match
++            # removes the state. Search only up to the boundary instead.
++            max_num_blocks -= 1
+         # Search from right to left and early stop when a match is found.
+         for i in range(max_num_blocks - 1, -1, -1):
+             if cached_block := block_pool.get_cached_block(
+diff --git a/vllm/v1/sample/ops/topk_topp_sampler.py b/vllm/v1/sample/ops/topk_topp_sampler.py
+index 69b35830a..4930576f3 100644
+--- a/vllm/v1/sample/ops/topk_topp_sampler.py
++++ b/vllm/v1/sample/ops/topk_topp_sampler.py
+@@ -109,7 +109,7 @@ class TopKTopPSampler(nn.Module):
+                 self.forward = self.forward_native
+         elif (
+             logprobs_mode not in ("processed_logits", "processed_logprobs")
+-            and rocm_aiter_ops.is_enabled()
++            and rocm_aiter_ops.is_sampler_enabled()
+         ):
+             self.aiter_ops = None
+             self._aiter_ops_import_failed = False
