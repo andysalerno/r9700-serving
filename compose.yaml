@@ -1,3 +1,19 @@
+x-vllm-full-cache-volumes: &vllm_full_cache_volumes
+  - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
+  - ./chat-templates/:/app/chat-templates:Z
+  - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
+  - ${HOME}/.cache/triton:/root/.cache/triton:Z
+  - ${HOME}/.cache/torchinductor:/root/.cache/torchinductor:Z
+
+x-vllm-cache-volumes: &vllm_cache_volumes
+  - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
+  - ./chat-templates/:/app/chat-templates:Z
+  - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
+
+x-llamacpp-cache-volumes: &llamacpp_cache_volumes
+  - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
+  - ${HOME}/.cache/llama.cpp:/root/.cache/llama.cpp:Z
+
 services:
   vllm-rocm-wheel-nightly:
     profiles: ["vllm-rocm-wheel-nightly"]
@@ -39,12 +55,7 @@ services:
       default:
         aliases:
           - llm-backend
-    volumes:
-      - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
-      - ./chat-templates/:/app/chat-templates:Z
-      - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
-      - ${HOME}/.cache/triton:/root/.cache/triton:Z
-      - ${HOME}/.cache/torchinductor:/root/.cache/torchinductor:Z
+    volumes: *vllm_full_cache_volumes
     env_file:
       - .env/2xr9700.vllm.common
       - .env/otel.common
@@ -105,12 +116,7 @@ services:
       default:
         aliases:
           - llm-backend
-    volumes:
-      - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
-      - ./chat-templates/:/app/chat-templates:Z
-      - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
-      - ${HOME}/.cache/triton:/root/.cache/triton:Z
-      - ${HOME}/.cache/torchinductor:/root/.cache/torchinductor:Z
+    volumes: *vllm_full_cache_volumes
 
     env_file:
       - .env/2xr9700.vllm.common
@@ -188,12 +194,7 @@ services:
       default:
         aliases:
           - llm-backend
-    volumes:
-      - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
-      - ./chat-templates/:/app/chat-templates:Z
-      - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
-      - ${HOME}/.cache/triton:/root/.cache/triton:Z
-      - ${HOME}/.cache/torchinductor:/root/.cache/torchinductor:Z
+    volumes: *vllm_full_cache_volumes
 
     env_file:
       - .env/2xr9700.vllm.common
@@ -244,10 +245,7 @@ services:
     devices:
       - /dev/kfd:/dev/kfd
       - /dev/dri:/dev/dri
-    volumes:
-      - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
-      - ./chat-templates/:/app/chat-templates:Z
-      - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
+    volumes: *vllm_cache_volumes
     networks:
       default:
         aliases:
@@ -369,10 +367,7 @@ services:
       default:
         aliases:
           - llm-backend
-    volumes:
-      - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
-      - ./chat-templates/:/app/chat-templates:Z
-      - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
+    volumes: *vllm_cache_volumes
 
     env_file:
       - .env/2xr9700.vllm.common
@@ -429,9 +424,7 @@ services:
     security_opt:
       - label=disable
     ipc: host
-    volumes:
-      - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
-      - ${HOME}/.cache/llama.cpp:/root/.cache/llama.cpp:Z
+    volumes: *llamacpp_cache_volumes
     environment:
       - LLAMA_ARG_HOST=0.0.0.0
       - LLAMA_ARG_PORT=8000
@@ -479,9 +472,7 @@ services:
     security_opt:
       - label=disable
     ipc: host
-    volumes:
-      - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
-      - ${HOME}/.cache/llama.cpp:/root/.cache/llama.cpp:Z
+    volumes: *llamacpp_cache_volumes
     environment:
       - LLAMA_ARG_HOST=0.0.0.0
       - LLAMA_ARG_PORT=8000
