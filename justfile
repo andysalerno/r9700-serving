@@ -29,8 +29,5 @@ check-versions:
 up:
     podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-gfx12x-patched up
 
-up-aiter-latest:
-    podman compose --env-file .env/env.rocm714 --env-file .env/aiter-latest.env --profile vllm-rocm-wheel-gfx12x-patched up --build
-
 down:
     podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-gfx12x-patched down
