@@ -153,7 +153,7 @@ services:
   vllm-mainline:
     <<: *amd_devices
     profiles: ["vllm-mainline"]
-    image: vllm/vllm-openai-rocm:v0.22.1
+    image: vllm/vllm-openai-rocm:v0.23.0
     container_name: vllm-mainline
     ports:
       - "8000:8000"
@@ -168,10 +168,9 @@ services:
     env_file:
       - .env/2xr9700.vllm.common
       - .env/otel.common
-      - .env/nccl-fix
+      # - .env/nccl-fix
     environment:
       - FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
-    # environment:
     #   - GPU_MAX_HW_QUEUES=1
     command: >
       Qwen/Qwen3.6-27B-FP8
@@ -193,10 +192,6 @@ services:
       -tp 2
       --speculative-config '{"method": "mtp", "num_speculative_tokens": 3}'
       --attention-backend TRITON_ATTN
-    # --attention-backend ROCM_AITER_UNIFIED_ATTN
-    # --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
-    # --collect-detailed-traces=all
-    # --speculative-config '{"method": "mtp", "num_speculative_tokens": 3, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
 
   vllm-qwen36-27b-fp8-aml731:
     <<: *amd_devices
