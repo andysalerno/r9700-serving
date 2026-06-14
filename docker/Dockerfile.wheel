@@ -44,6 +44,7 @@ RUN uv pip install \
     --find-links ${VLLM_WHEEL_URL}/amd-aiter/ \
     --find-links ${VLLM_WHEEL_URL}/flash-attn/ \
     vllm==${VLLM_VERSION} flash-attn==${FLASH_ATTN_VERSION} \
+    "fastapi[standard]<0.137" \
     && uv pip install --no-deps torch-c-dlpack-ext
 
 # The vLLM ROCm torch wheel expects ROCm userspace libraries at runtime; install
