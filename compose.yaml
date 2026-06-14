@@ -161,9 +161,6 @@ services:
       -tp 2
       --attention-backend ROCM_AITER_UNIFIED_ATTN
       --speculative-config '{"method": "mtp", "num_speculative_tokens": 3, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
-    # --speculative-config '{"method": "mtp", "num_speculative_tokens": 3, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
-    # --otlp-traces-endpoint http://aspire-dashboard:18890/v1/traces
-    # --collect-detailed-traces=all
 
   vllm-mainline:
     <<: *amd_devices
