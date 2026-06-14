@@ -60,8 +60,8 @@ services:
     env_file:
       - .env/2xr9700.vllm.common
       - .env/otel.common
-    # environment:
-    #   - FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
+    environment:
+      - FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
     command: >
       Qwen/Qwen3.6-27B-FP8
       --tokenizer Qwen/Qwen3.6-27B
