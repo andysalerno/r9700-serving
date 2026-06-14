@@ -168,7 +168,7 @@ services:
     env_file:
       - .env/2xr9700.vllm.common
       - .env/otel.common
-      # - .env/nccl-fix
+      - .env/nccl-fix
     environment:
       - FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
     #   - GPU_MAX_HW_QUEUES=1
