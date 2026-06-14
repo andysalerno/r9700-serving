@@ -38,8 +38,8 @@ services:
         GFX_TARGET: gfx120X-all
         GFX_ARCH: gfx1201
         PYTHON: python3.12
-        VLLM_WHEEL_URL: https://wheels.vllm.ai/rocm/nightly/rocm723
-        VLLM_VERSION: 0.22.1rc1.dev511+gc621af169.rocm723
+        VLLM_WHEEL_URL: "${VLLM_WHEEL_URL:?set VLLM_WHEEL_URL with --env-file .env/env.vllm.latest or nightly}"
+        VLLM_VERSION: "${VLLM_VERSION:?set VLLM_VERSION with --env-file .env/env.vllm.latest or nightly}"
         ROCM_WHEEL_INDEX_URL: "${ROCM_WHEEL_INDEX_URL-https://rocm.nightlies.amd.com/whl-multi-arch/}"
         ROCM_SDK_CORE_VERSION: "${ROCM_SDK_CORE_VERSION:?set ROCM_SDK_CORE_VERSION with --env-file .env/env.rocm714 or .env/env.rocm713}"
         ROCM_SDK_LIBRARIES_VERSION: "${ROCM_SDK_LIBRARIES_VERSION:?set ROCM_SDK_LIBRARIES_VERSION with --env-file .env/env.rocm714 or .env/env.rocm713}"
