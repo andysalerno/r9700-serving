@@ -13,8 +13,21 @@ x-llamacpp-cache-volumes: &llamacpp_cache_volumes
   - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
   - ${HOME}/.cache/llama.cpp:/root/.cache/llama.cpp:Z
 
+x-amd-devices: &amd_devices
+  devices:
+    - /dev/kfd:/dev/kfd
+    - /dev/dri:/dev/dri
+  group_add:
+    - "video"
+  cap_add:
+    - SYS_PTRACE
+  security_opt:
+    - label=disable
+  ipc: host
+
 services:
   vllm-rocm-wheel-nightly:
+    <<: *amd_devices
     profiles: ["vllm-rocm-wheel-nightly"]
     image: localhost/vllm-rocm-wheel-nightly
     # image: docker.io/vllm/vllm-openai-rocm:nightly
@@ -35,17 +48,6 @@ services:
         ROCM_SDK_LIBRARIES_DIR: "${ROCM_SDK_LIBRARIES_DIR-_rocm_sdk_libraries}"
         FLASH_ATTN_VERSION: 2.8.3
     container_name: vllm-rocm-wheel-nightly
-    devices:
-      - /dev/kfd:/dev/kfd
-      - /dev/dri:/dev/dri
-    group_add:
-      - "video"
-      # - "render"
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - label=disable
-    ipc: host
     ports:
       - "8000:8000"
     # depends_on:
@@ -81,6 +83,7 @@ services:
       -tp 2
 
   vllm-rocm-wheel-gfx12x-patched:
+    <<: *amd_devices
     profiles: ["vllm-rocm-wheel-gfx12x-patched"]
     image: localhost/vllm-rocm-wheel-gfx12x-patched
     build:
@@ -97,16 +100,6 @@ services:
         AITER_LATEST_FLYDSL_WHEEL_URL:
         AITER_LATEST_FLYDSL_WHEEL_FILENAME:
     container_name: vllm-rocm-wheel-gfx12x-patched
-    devices:
-      - /dev/kfd:/dev/kfd
-      - /dev/dri:/dev/dri
-    group_add:
-      - "video"
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - label=disable
-    ipc: host
     ports:
       - "8000:8000"
     # depends_on:
@@ -172,19 +165,10 @@ services:
     # --collect-detailed-traces=all
 
   vllm-mainline:
+    <<: *amd_devices
     profiles: ["vllm-mainline"]
     image: vllm/vllm-openai-rocm:v0.22.1
     container_name: vllm-mainline
-    devices:
-      - /dev/kfd:/dev/kfd
-      - /dev/dri:/dev/dri
-    group_add:
-      - "video"
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - label=disable
-    ipc: host
     ports:
       - "8000:8000"
     # depends_on:
@@ -229,21 +213,10 @@ services:
     # --speculative-config '{"method": "mtp", "num_speculative_tokens": 3, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
 
   vllm-qwen36-27b-fp8-aml731:
+    <<: *amd_devices
     image: aml731/vllm-aiter:v0.20.2
     profiles: ["vllm-aml"]
     container_name: vllm-qwen36-27b-fp8-aml731
-    group_add:
-      - video
-    ports:
-      - "8000:8000"
-    ipc: host
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - seccomp:unconfined
-    devices:
-      - /dev/kfd:/dev/kfd
-      - /dev/dri:/dev/dri
     volumes: *vllm_full_cache_volumes
     networks:
       default:
@@ -288,18 +261,8 @@ services:
   atom:
     profiles: ["atom"]
     image: docker.io/rocm/atom-dev:vllm-latest
+    <<: *amd_devices
     container_name: atom-dev
-    devices:
-      - /dev/kfd:/dev/kfd
-      - /dev/dri:/dev/dri
-    group_add:
-      - "video"
-      # - "render"
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - label=disable
-    ipc: host
     ports:
       - "8000:8000"
     networks:
@@ -331,6 +294,7 @@ services:
   vllm-rocm-wheel:
     profiles: ["vllm-rocm-wheel"]
     image: localhost/vllm-rocm-wheel
+    <<: *amd_devices
     build:
       context: .
       dockerfile: docker/Dockerfile.wheel
@@ -348,16 +312,6 @@ services:
         ROCM_SDK_LIBRARIES_DIR: "${ROCM_SDK_LIBRARIES_DIR-_rocm_sdk_libraries}"
         FLASH_ATTN_VERSION: 2.8.3
     container_name: vllm-rocm-wheel
-    devices:
-      - /dev/kfd:/dev/kfd
-      - /dev/dri:/dev/dri
-    group_add:
-      - "video"
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - label=disable
-    ipc: host
     ports:
       - "8000:8000"
     # depends_on:
@@ -404,6 +358,7 @@ services:
   llamacpp-rocm:
     image: ghcr.io/ggml-org/llama.cpp:server-rocm
     container_name: llamacpp-qwen36-rocm
+    <<: *amd_devices
     profiles: ["llamacpp-rocm"]
     ports:
       - "8000:8000"
@@ -412,17 +367,6 @@ services:
         aliases:
           - llm-backend
           - llamacpp
-    devices:
-      - /dev/kfd:/dev/kfd
-      - /dev/dri:/dev/dri
-    group_add:
-      - "video"
-      - "render"
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - label=disable
-    ipc: host
     volumes: *llamacpp_cache_volumes
     environment:
       - LLAMA_ARG_HOST=0.0.0.0
@@ -451,6 +395,7 @@ services:
       --spec-type draft-mtp --spec-draft-n-max 3
 
   llamacpp-vulkan:
+    <<: *amd_devices
     image: ghcr.io/ggml-org/llama.cpp:server-vulkan
     container_name: llamacpp-qwen36-vulkan
     profiles: ["llamacpp-vulkan"]
@@ -461,16 +406,6 @@ services:
         aliases:
           - llm-backend
           - llamacpp
-    devices:
-      - /dev/kfd:/dev/kfd
-      - /dev/dri:/dev/dri
-    group_add:
-      - "video"
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - label=disable
-    ipc: host
     volumes: *llamacpp_cache_volumes
     environment:
       - LLAMA_ARG_HOST=0.0.0.0
