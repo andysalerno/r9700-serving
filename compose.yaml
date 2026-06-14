@@ -134,8 +134,9 @@ services:
       - CPATH=/opt/vllm/lib/python3.12/site-packages/_rocm_sdk_devel/include
       - LIBRARY_PATH=/opt/vllm/lib/python3.12/site-packages/_rocm_sdk_devel/lib
       # HIPBLASLT_TENSILE_LIBPATH and ROCBLAS_TENSILE_LIBPATH are baked into
-      # the image from ROCM_SDK_LIBRARIES_DIR so env.rocm713/env.rocm714 can
-      # switch the ROCm SDK layout without runtime path overrides here.
+      # the image from ROCM_SDK_LIBRARIES_DIR so .env/env.rocm713 or
+      # .env/env.rocm714 can switch the ROCm SDK layout without runtime path
+      # overrides here.
       - GPU_MAX_HW_QUEUES=1
       # - VLLM_LOGGING_LEVEL=DEBUG
       # - VLLM_USE_NCCL_SYMM_MEM=1

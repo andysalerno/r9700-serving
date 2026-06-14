@@ -4,11 +4,11 @@ podman compose --profile vllm-rocm-wheel-gfx12x-patched up
 
 Note, you must first build the profile it depends upon:
 
-podman compose --env-file env.rocm714 --profile vllm-rocm-wheel-nightly build
+podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-nightly build
 
 Followed by:
 
-podman compose --env-file env.rocm714 --env-file .env/aiter-latest.env --profile vllm-rocm-wheel-gfx12x-patched build
+podman compose --env-file .env/env.rocm714 --env-file .env/aiter-latest.env --profile vllm-rocm-wheel-gfx12x-patched build
 
 And then finally try it with:
 

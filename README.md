@@ -51,13 +51,14 @@ To select an explicit ROCm SDK set for builds, pass one of the versioned
 Compose env files:
 
 ```sh
-podman compose --env-file env.rocm714 --profile vllm-rocm-wheel-nightly build
-podman compose --env-file env.rocm714 --profile vllm-rocm-wheel-gfx12x-patched build
+podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-nightly build
+podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-gfx12x-patched build
 ```
 
-The default when no `--env-file` is passed is `env.rocm714`. To switch back to
-the previous stable SDK wheel layout, use `--env-file env.rocm713` for the
-nightly build and any dependent patched build.
+The default values when no `--env-file` is passed match `.env/env.rocm714`. To
+switch back to the previous stable SDK wheel layout, use
+`--env-file .env/env.rocm713` for the nightly build and any dependent patched
+build.
 
 If you have `just`, the common build shortcuts are:
 
@@ -94,9 +95,9 @@ The ROCm SDK wheels come from:
 https://rocm.nightlies.amd.com/whl-multi-arch/
 ```
 
-For gfx1201, keep `ROCM_SDK_CORE_VERSION`, `ROCM_SDK_LIBRARIES_VERSION`, and `ROCM_SDK_DEVEL_VERSION` on the same nightly version in `env.rocm714`. Compose service `env_file` entries do not feed `build.args`, so these build values are supplied through Compose variable interpolation and selected with `podman compose --env-file ...`.
+For gfx1201, keep `ROCM_SDK_CORE_VERSION`, `ROCM_SDK_LIBRARIES_VERSION`, and `ROCM_SDK_DEVEL_VERSION` on the same nightly version in `.env/env.rocm714`. Compose service `env_file` entries do not feed `build.args`, so these build values are supplied through Compose variable interpolation and selected with `podman compose --env-file ...`.
 
-The old stable ROCm wheel index and 7.13 package names live in `env.rocm713`.
+The old stable ROCm wheel index and 7.13 package names live in `.env/env.rocm713`.
 
 ## Custom gfx12x/R9700 patch
 
@@ -132,7 +133,7 @@ podman compose --env-file .env/aiter-latest.env --profile vllm-rocm-wheel-gfx12x
 If also selecting a ROCm SDK env file, pass both env files, for example:
 
 ```sh
-podman compose --env-file env.rocm714 --env-file .env/aiter-latest.env --profile vllm-rocm-wheel-gfx12x-patched build
+podman compose --env-file .env/env.rocm714 --env-file .env/aiter-latest.env --profile vllm-rocm-wheel-gfx12x-patched build
 ```
 
 What it does, briefly:
