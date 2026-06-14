@@ -1,6 +1,6 @@
 Your task is to make the following bring up vllm successfully:
 
-podman compose --profile vllm-rocm-wheel-gfx12x-patched up
+podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-gfx12x-patched up
 
 Note, you must first build the profile it depends upon:
 
@@ -12,7 +12,7 @@ podman compose --env-file .env/env.rocm714 --env-file .env/aiter-latest.env --pr
 
 And then finally try it with:
 
-podman compose --profile vllm-rocm-wheel-gfx12x-patched up
+podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-gfx12x-patched up
 
 To save you time, I just ran the above command ("...up") and stopped it when it hit the error. (I did not run "down"). So if you check the latest output from podman for the vllm container, you will see the error I want you to fix.
 

@@ -13,7 +13,7 @@ Main profiles in `compose.yaml`:
 
 | Profile | What it runs |
 | --- | --- |
-| `vllm-rocm-wheel-nightly` | Nightly vllm in a container with AMD ROCm nightlies for gfx1201 (currently 7.14.0a20260606). Uses Triton, update `--attention-backend` to try ROCM_ATTN. |
+| `vllm-rocm-wheel-nightly` | Nightly vllm in a container with AMD ROCm nightlies for gfx1201, selected by `.env/env.rocm714`. Uses Triton, update `--attention-backend` to try ROCM_ATTN. |
 | `vllm-rocm-wheel-gfx12x-patched` | Builds from the nightly image, applies the custom gfx12x/R9700 patch, and runs AITER unified attention. |
 | `vllm-rocm-wheel` | Builds a pinned non-nightly vLLM ROCm wheel image. |
 | `vllm-aml` | Runs the external `aml731/vllm-aiter` image. Note: I can't vet the contents of this container, as it's not mine, but it indeed is very fast and also enables unified attention |
@@ -26,25 +26,25 @@ Main profiles in `compose.yaml`:
 Replace `PROFILE` with one of the profile names above.
 
 ```sh
-podman compose --profile PROFILE build
-podman compose --profile PROFILE up
-podman compose --profile PROFILE up --build
-podman compose --profile PROFILE up -d
-podman compose --profile PROFILE down
+podman compose --env-file .env/env.rocm714 --profile PROFILE build
+podman compose --env-file .env/env.rocm714 --profile PROFILE up
+podman compose --env-file .env/env.rocm714 --profile PROFILE up --build
+podman compose --env-file .env/env.rocm714 --profile PROFILE up -d
+podman compose --env-file .env/env.rocm714 --profile PROFILE down
 ```
 
 Example:
 
 ```sh
-podman compose --profile vllm-rocm-wheel-nightly up --build
+podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-nightly up --build
 ```
 
 The patched profile uses `localhost/vllm-rocm-wheel-nightly` as its base image, so build the nightly profile first:
 
 ```sh
-podman compose --profile vllm-rocm-wheel-nightly build
-podman compose --profile vllm-rocm-wheel-gfx12x-patched build
-podman compose --profile vllm-rocm-wheel-gfx12x-patched up
+podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-nightly build
+podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-gfx12x-patched build
+podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-gfx12x-patched up
 ```
 
 To select an explicit ROCm SDK set for builds, pass one of the versioned
@@ -55,10 +55,9 @@ podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-nightly bui
 podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-gfx12x-patched build
 ```
 
-The default values when no `--env-file` is passed match `.env/env.rocm714`. To
-switch back to the previous stable SDK wheel layout, use
-`--env-file .env/env.rocm713` for the nightly build and any dependent patched
-build.
+The ROCm SDK build args are required. Pass `--env-file .env/env.rocm714` for the
+current nightly SDK wheel layout, or `--env-file .env/env.rocm713` for the
+previous stable SDK wheel layout.
 
 If you have `just`, the common build shortcuts are:
 
@@ -72,7 +71,7 @@ just up-aiter-latest
 To stop the stack:
 
 ```sh
-podman compose --profile vllm-rocm-wheel-gfx12x-patched down
+podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-gfx12x-patched down
 ```
 
 ## Updating nightly vLLM wheels
@@ -118,19 +117,13 @@ The patched Dockerfile starts from `localhost/vllm-rocm-wheel-nightly`, installs
 Use it with the `vllm-rocm-wheel-gfx12x-patched` profile:
 
 ```sh
-podman compose --profile vllm-rocm-wheel-nightly build
-podman compose --profile vllm-rocm-wheel-gfx12x-patched up --build
+podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-nightly build
+podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-gfx12x-patched up --build
 ```
 
 By default, the patched build keeps the AITER wheel bundled by the vLLM wheel
-index. To try AITER v0.1.15, pass the opt-in env file when building the patched
-image:
-
-```sh
-podman compose --env-file .env/aiter-latest.env --profile vllm-rocm-wheel-gfx12x-patched build
-```
-
-If also selecting a ROCm SDK env file, pass both env files, for example:
+index. To try AITER v0.1.15, pass both the ROCm SDK env file and the opt-in
+AITER env file when building the patched image:
 
 ```sh
 podman compose --env-file .env/env.rocm714 --env-file .env/aiter-latest.env --profile vllm-rocm-wheel-gfx12x-patched build
