@@ -98,12 +98,13 @@ For gfx1201, keep `ROCM_SDK_CORE_VERSION`, `ROCM_SDK_LIBRARIES_VERSION`, and `RO
 
 The old stable ROCm wheel index and 7.13 package names live in `.env/env.rocm713`.
 
-## Custom gfx12x/R9700 patch
+## Custom gfx12x/R9700 patches
 
-Patch file:
+Patch files:
 
 ```text
-docker/patches/GFX12x_R9700_RUNTIME.patch
+docker/patches/GFX12x_R9700_AITER_ENABLEMENT.patch
+docker/patches/GFX12x_R9700_ROCM714_RUNTIME.patch
 ```
 
 Patch image:
@@ -112,7 +113,7 @@ Patch image:
 docker/Dockerfile.wheel-gfx12x-patched
 ```
 
-The patched Dockerfile starts from `localhost/vllm-rocm-wheel-nightly`, installs the ROCm SDK development files needed at runtime, copies the patch into the image, applies it inside Python `site-packages` with `git apply`, and then `py_compile`s the touched vLLM files. The apply step is idempotent: it applies the patch when possible and reports when the patch is already present.
+The patched Dockerfile starts from `localhost/vllm-rocm-wheel-nightly`, installs the ROCm SDK development files needed at runtime, copies both patches into the image, applies them inside Python `site-packages` with `git apply`, and then `py_compile`s the touched vLLM files. The apply step is idempotent: it applies each patch when possible and reports when a patch is already present.
 
 Use it with the `vllm-rocm-wheel-gfx12x-patched` profile:
 
@@ -129,16 +130,12 @@ AITER env file when building the patched image:
 podman compose --env-file .env/env.rocm714 --env-file .env/aiter-latest.env --profile vllm-rocm-wheel-gfx12x-patched build
 ```
 
-What it does, briefly:
+What the split does, briefly:
 
-- Treats gfx12x/R9700 as an AITER-supported ROCm architecture in vLLM runtime checks.
-- Allows gfx12x through FP8 fused MoE support checks.
-- Allows the ROCm AITER attention backend on gfx12x.
-- Forces the AITER flash-attention path to use unified attention on gfx12x.
+- `GFX12x_R9700_AITER_ENABLEMENT.patch` treats gfx12x/R9700 as an AITER-supported ROCm architecture in vLLM runtime checks and allows the ROCm AITER attention backend on gfx12x.
+- `GFX12x_R9700_ROCM714_RUNTIME.patch` contains ROCm 7.1.4/nightly runtime fixes needed for vLLM startup and serving, including gfx12x FP8 fused MoE support checks, TileLang import avoidance on gfx12x, AITER unified-attention import/API compatibility, AITER sampler gating, and cache/fusion guards.
 
-It does NOT modify any AITER code or inference-level logic, it just relaxes the restrictions in vllm attention-selection logic so that AITER will be treated as selectable for gfx1201. IMO this indicates vllm should be updated with a similar change, to let R9700 select an attention backend that runs much faster, though of course there may be bugs/downsides at the moment that would need to be fixed first (though I haven't encountered any).
-
-The patch is a local runtime patch against the installed vLLM wheel. When the nightly wheel changes, the patch will need to be refreshed if upstream files move or change.
+These are local runtime patches against the installed vLLM wheel. They do not modify AITER package code, but the ROCm 7.1.4 runtime patch does include vLLM-side compatibility shims for current ROCm/AITER nightly wheel behavior. When the nightly wheel changes, the patches will need to be refreshed if upstream files move or change.
 
 ## Benchmarks
 

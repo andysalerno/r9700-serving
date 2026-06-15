@@ -87,20 +87,25 @@ RUN set -eux; \
             ;; \
     esac
 
-COPY docker/patches/GFX12x_R9700_RUNTIME.patch /tmp/GFX12x_R9700_RUNTIME.patch
+COPY docker/patches/GFX12x_R9700_AITER_ENABLEMENT.patch /tmp/GFX12x_R9700_AITER_ENABLEMENT.patch
+COPY docker/patches/GFX12x_R9700_ROCM714_RUNTIME.patch /tmp/GFX12x_R9700_ROCM714_RUNTIME.patch
 
 RUN set -eux; \
     PYTHON_BIN="$(command -v python || command -v python3)"; \
     SITE_PACKAGES="$("${PYTHON_BIN}" -c 'import site; paths = site.getsitepackages(); print(next((p for p in paths if p.endswith("site-packages")), paths[0]))')"; \
     cd "${SITE_PACKAGES}"; \
-    if git apply --check /tmp/GFX12x_R9700_RUNTIME.patch; then \
-        git apply /tmp/GFX12x_R9700_RUNTIME.patch; \
-        echo "Applied gfx12x/R9700 runtime patch"; \
-    elif git apply --reverse --check /tmp/GFX12x_R9700_RUNTIME.patch; then \
-        echo "gfx12x/R9700 runtime patch is already applied"; \
-    else \
-        git apply --check /tmp/GFX12x_R9700_RUNTIME.patch; \
-    fi; \
+    for patch in \
+        /tmp/GFX12x_R9700_AITER_ENABLEMENT.patch \
+        /tmp/GFX12x_R9700_ROCM714_RUNTIME.patch; do \
+        if git apply --check "${patch}"; then \
+            git apply "${patch}"; \
+            echo "Applied ${patch##*/}"; \
+        elif git apply --reverse --check "${patch}"; then \
+            echo "${patch##*/} is already applied"; \
+        else \
+            git apply --check "${patch}"; \
+        fi; \
+    done; \
     "${PYTHON_BIN}" -m py_compile \
         vllm/_aiter_ops.py \
         vllm/compilation/passes/fusion/rms_quant_fusion.py \

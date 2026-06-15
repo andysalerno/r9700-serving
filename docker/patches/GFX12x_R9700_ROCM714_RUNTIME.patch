@@ -1,61 +1,6 @@
 diff --git a/vllm/_aiter_ops.py b/vllm/_aiter_ops.py
-index eb12bed..4649a82 100644
 --- a/vllm/_aiter_ops.py
 +++ b/vllm/_aiter_ops.py
-@@ -76,7 +76,7 @@ class AiterCustomAllreduceProto(Protocol):
- def is_aiter_found_and_supported() -> bool:
-     """Check if AITER library is available and platform supports it.
- 
--    Checks: platform (ROCm), device arch (gfx9), and library existence.
-+    Checks: platform (ROCm), supported device arch, and library existence.
-     Does NOT check environment variables - that's handled by rocm_aiter_ops.is_enabled().
- 
-     This function determines if aiter CAN be used, not if it SHOULD be used.
-@@ -90,9 +90,9 @@ def is_aiter_found_and_supported() -> bool:
-     VLLM_ROCM_USE_AITER=0, while preventing unwanted JIT warnings for auto-discovery.
-     """
-     if current_platform.is_rocm() and IS_AITER_FOUND:
--        from vllm.platforms.rocm import on_mi3xx
-+        from vllm.platforms.rocm import on_gfx12x, on_mi3xx
- 
--        return on_mi3xx()
-+        return on_mi3xx() or on_gfx12x()
-     return False
- 
- 
-@@ -121,7 +121,7 @@ def _check_kernel_tuned(N: int, K: int, q_dtype_w: torch.dtype, csv_path: str) -
- 
- def if_aiter_supported(func: Callable) -> Callable:
-     """Decorator that only executes the function if
--    ROCm AITER package is supported and enabled on gfx9 archs.
-+    ROCm AITER package is available on a supported architecture.
-     """
- 
-     @functools.wraps(func)
-@@ -1276,7 +1276,7 @@ class rocm_aiter_ops:
- 
-     This class centralizes the import and registration of AITER ops,
-     and provides a unified interface for checking if AITER is enabled.
--    Operations are only available on supported gfx9
-+    Operations are only available on supported MI3xx or gfx12x
-     architectures when aiter is installed.
- 
-     The class uses environment variables to control which features are enabled,
-@@ -1307,12 +1307,12 @@ class rocm_aiter_ops:
- 
-     Check Functions:
-         All check functions (is_*_enabled) are decorated with @if_aiter_supported,
--        which verifies: (1) platform is ROCm, (2) device arch is gfx9, and
-+        which verifies: (1) platform is ROCm, (2) device arch supports AITER, and
-         (3) aiter library is installed. The check function then also verifies
-         the corresponding environment variable is enabled.
-         i.e.                                             ___
-         is_enabled() == current_platform.is_rocm() and      |     checked by
--                        current_platform.is_on_gfx9() and   | @if_aiter_supported
-+                        device arch supports AITER and       | @if_aiter_supported
-                         IS_AITER_FOUND and   _______________|
-                         cls._AITER_ENABLED   -----> Check by the logic in `is_enabled()`
- 
 @@ -1463,6 +1463,15 @@ class rocm_aiter_ops:
      def is_enabled(cls) -> bool:
          return cls._AITER_ENABLED
@@ -73,7 +18,6 @@ index eb12bed..4649a82 100644
      @if_aiter_supported
      def is_linear_enabled(cls) -> bool:
 diff --git a/vllm/compilation/passes/fusion/rms_quant_fusion.py b/vllm/compilation/passes/fusion/rms_quant_fusion.py
-index 670349a..90c33e1 100644
 --- a/vllm/compilation/passes/fusion/rms_quant_fusion.py
 +++ b/vllm/compilation/passes/fusion/rms_quant_fusion.py
 @@ -44,19 +44,36 @@ _FUSED_ADD_RMS_NORM_OP = torch.ops.vllm_ir.fused_add_rms_norm.default
@@ -120,7 +64,6 @@ index 670349a..90c33e1 100644
  
  
 diff --git a/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py b/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py
-index 1f5724a..a341ebe 100644
 --- a/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py
 +++ b/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py
 @@ -758,13 +758,13 @@ class BatchedTritonExperts(mk.FusedMoEExpertsModular):
@@ -141,21 +84,7 @@ index 1f5724a..a341ebe 100644
              p.is_cuda() and p.has_device_capability((8, 9))
          )
  
-diff --git a/vllm/platforms/rocm.py b/vllm/platforms/rocm.py
-index 7f6d879..3e53002 100644
---- a/vllm/platforms/rocm.py
-+++ b/vllm/platforms/rocm.py
-@@ -625,7 +625,7 @@ class RocmPlatform(Platform):
- 
-         from vllm._aiter_ops import rocm_aiter_ops
- 
--        if rocm_aiter_ops.is_enabled() and on_gfx9():
-+        if rocm_aiter_ops.is_mha_enabled() and (on_gfx9() or on_gfx12x()):
-             logger.info_once("Using AITER Flash Attention backend for ViT model.")
-             return AttentionBackendEnum.ROCM_AITER_FA
- 
 diff --git a/vllm/utils/import_utils.py b/vllm/utils/import_utils.py
-index c37b3b6..8e86665 100644
 --- a/vllm/utils/import_utils.py
 +++ b/vllm/utils/import_utils.py
 @@ -445,6 +445,15 @@ def has_triton_kernels() -> bool:
@@ -175,26 +104,8 @@ index c37b3b6..8e86665 100644
  
  
 diff --git a/vllm/v1/attention/backends/rocm_aiter_fa.py b/vllm/v1/attention/backends/rocm_aiter_fa.py
-index a9fa45d..f92dcb9 100644
 --- a/vllm/v1/attention/backends/rocm_aiter_fa.py
 +++ b/vllm/v1/attention/backends/rocm_aiter_fa.py
-@@ -768,12 +768,12 @@ class AiterFlashAttentionBackend(AttentionBackend):
- 
-     @classmethod
-     def supports_compute_capability(cls, capability: DeviceCapability) -> bool:
--        from vllm.platforms.rocm import on_mi3xx
-+        from vllm.platforms.rocm import on_gfx12x, on_mi3xx
- 
-         # DeviceCapability is currently created using torch.cuda.get_device_capability()
--        # which is known to be buggy on rocm systems. on_mi3xx uses amd-smi which is
--        # more reliable.
--        return on_mi3xx()
-+        # which is known to be buggy on rocm systems. These helpers use the cached
-+        # GCN arch from ROCm, which is more reliable.
-+        return on_mi3xx() or on_gfx12x()
- 
-     @classmethod
-     def supports_non_causal(cls) -> bool:
 @@ -1196,7 +1196,7 @@ class AiterFlashAttentionImpl(AttentionImpl):
                          # Non-uniform query lengths can appear in real serving
                          # traffic (e.g. mixed datasets). Fall back to varlen
@@ -226,7 +137,6 @@ index a9fa45d..f92dcb9 100644
                      )
  
 diff --git a/vllm/v1/attention/backends/rocm_aiter_unified_attn.py b/vllm/v1/attention/backends/rocm_aiter_unified_attn.py
-index 984fc20..de4805e 100644
 --- a/vllm/v1/attention/backends/rocm_aiter_unified_attn.py
 +++ b/vllm/v1/attention/backends/rocm_aiter_unified_attn.py
 @@ -129,7 +129,7 @@ class RocmAiterUnifiedAttentionImpl(RocmAttentionImpl):
@@ -239,7 +149,6 @@ index 984fc20..de4805e 100644
          self.unified_attention = unified_attention
          self.supports_quant_query_input = True
 diff --git a/vllm/v1/core/single_type_kv_cache_manager.py b/vllm/v1/core/single_type_kv_cache_manager.py
-index 478effc..2e764d6 100644
 --- a/vllm/v1/core/single_type_kv_cache_manager.py
 +++ b/vllm/v1/core/single_type_kv_cache_manager.py
 @@ -991,6 +991,12 @@ class MambaManager(SingleTypeKVCacheManager):
@@ -256,7 +165,6 @@ index 478effc..2e764d6 100644
          for i in range(max_num_blocks - 1, -1, -1):
              if cached_block := block_pool.get_cached_block(
 diff --git a/vllm/v1/sample/ops/topk_topp_sampler.py b/vllm/v1/sample/ops/topk_topp_sampler.py
-index 6f324ce..1545dd2 100644
 --- a/vllm/v1/sample/ops/topk_topp_sampler.py
 +++ b/vllm/v1/sample/ops/topk_topp_sampler.py
 @@ -109,7 +109,7 @@ class TopKTopPSampler(nn.Module):

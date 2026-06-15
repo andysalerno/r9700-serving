@@ -26,7 +26,7 @@ It's already on a private branch that is latest main, but merged with some chang
 
 But, as of the latest nightly version of vllm, the patch we came up with no longer works.
 
-So, you should: Inspect the error. Inspect the codebase. Inspect the patch. Inspect the dockerfile docker/Dockerfile.wheel-gfx12x-patched which applies the patch. Understand all that. Then, iterate by coming up with a new / fixed patch (ultimately saved in ./docker/patches/GFX12x_R9700_RUNTIME.patch) and trying to bring up vllm and run basic inference (just a simple chat completions request over curl will do) to prove it works.
+So, you should: Inspect the error. Inspect the codebase. Inspect the patches. Inspect the dockerfile docker/Dockerfile.wheel-gfx12x-patched which applies the patches. Understand all that. Then, iterate by coming up with new / fixed patches (ultimately saved in ./docker/patches/GFX12x_R9700_AITER_ENABLEMENT.patch and ./docker/patches/GFX12x_R9700_ROCM714_RUNTIME.patch) and trying to bring up vllm and run basic inference (just a simple chat completions request over curl will do) to prove it works.
 
 A few final tips:
 - do not try to actually build vllm. Only use the repo in ~/repos/vllm as a way to iterate on the patch that will ultimately be applied in our dockerfile.
