@@ -1,8 +1,8 @@
 diff --git a/vllm/_aiter_ops.py b/vllm/_aiter_ops.py
-index 1d75b7c76..2adfc5d3a 100644
+index eb12bed..4649a82 100644
 --- a/vllm/_aiter_ops.py
 +++ b/vllm/_aiter_ops.py
-@@ -91,7 +91,7 @@ class AiterCustomAllreduceProto(Protocol):
+@@ -76,7 +76,7 @@ class AiterCustomAllreduceProto(Protocol):
  def is_aiter_found_and_supported() -> bool:
      """Check if AITER library is available and platform supports it.
  
@@ -11,7 +11,7 @@ index 1d75b7c76..2adfc5d3a 100644
      Does NOT check environment variables - that's handled by rocm_aiter_ops.is_enabled().
  
      This function determines if aiter CAN be used, not if it SHOULD be used.
-@@ -105,9 +105,9 @@ def is_aiter_found_and_supported() -> bool:
+@@ -90,9 +90,9 @@ def is_aiter_found_and_supported() -> bool:
      VLLM_ROCM_USE_AITER=0, while preventing unwanted JIT warnings for auto-discovery.
      """
      if current_platform.is_rocm() and IS_AITER_FOUND:
@@ -23,7 +23,7 @@ index 1d75b7c76..2adfc5d3a 100644
      return False
  
  
-@@ -136,7 +136,7 @@ def _check_kernel_tuned(N: int, K: int, q_dtype_w: torch.dtype, csv_path: str) -
+@@ -121,7 +121,7 @@ def _check_kernel_tuned(N: int, K: int, q_dtype_w: torch.dtype, csv_path: str) -
  
  def if_aiter_supported(func: Callable) -> Callable:
      """Decorator that only executes the function if
@@ -32,7 +32,7 @@ index 1d75b7c76..2adfc5d3a 100644
      """
  
      @functools.wraps(func)
-@@ -1437,7 +1437,7 @@ class rocm_aiter_ops:
+@@ -1276,7 +1276,7 @@ class rocm_aiter_ops:
  
      This class centralizes the import and registration of AITER ops,
      and provides a unified interface for checking if AITER is enabled.
@@ -41,7 +41,7 @@ index 1d75b7c76..2adfc5d3a 100644
      architectures when aiter is installed.
  
      The class uses environment variables to control which features are enabled,
-@@ -1468,12 +1468,12 @@ class rocm_aiter_ops:
+@@ -1307,12 +1307,12 @@ class rocm_aiter_ops:
  
      Check Functions:
          All check functions (is_*_enabled) are decorated with @if_aiter_supported,
@@ -56,7 +56,7 @@ index 1d75b7c76..2adfc5d3a 100644
                          IS_AITER_FOUND and   _______________|
                          cls._AITER_ENABLED   -----> Check by the logic in `is_enabled()`
  
-@@ -1624,6 +1624,15 @@ class rocm_aiter_ops:
+@@ -1463,6 +1463,15 @@ class rocm_aiter_ops:
      def is_enabled(cls) -> bool:
          return cls._AITER_ENABLED
  
@@ -73,7 +73,7 @@ index 1d75b7c76..2adfc5d3a 100644
      @if_aiter_supported
      def is_linear_enabled(cls) -> bool:
 diff --git a/vllm/compilation/passes/fusion/rms_quant_fusion.py b/vllm/compilation/passes/fusion/rms_quant_fusion.py
-index 670349a08..90c33e12c 100644
+index 670349a..90c33e1 100644
 --- a/vllm/compilation/passes/fusion/rms_quant_fusion.py
 +++ b/vllm/compilation/passes/fusion/rms_quant_fusion.py
 @@ -44,19 +44,36 @@ _FUSED_ADD_RMS_NORM_OP = torch.ops.vllm_ir.fused_add_rms_norm.default
@@ -120,7 +120,7 @@ index 670349a08..90c33e12c 100644
  
  
 diff --git a/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py b/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py
-index 1f5724ac3..a341ebe6a 100644
+index 1f5724a..a341ebe 100644
 --- a/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py
 +++ b/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py
 @@ -758,13 +758,13 @@ class BatchedTritonExperts(mk.FusedMoEExpertsModular):
@@ -142,7 +142,7 @@ index 1f5724ac3..a341ebe6a 100644
          )
  
 diff --git a/vllm/platforms/rocm.py b/vllm/platforms/rocm.py
-index 7f6d8794c..3e53002e8 100644
+index 7f6d879..3e53002 100644
 --- a/vllm/platforms/rocm.py
 +++ b/vllm/platforms/rocm.py
 @@ -625,7 +625,7 @@ class RocmPlatform(Platform):
@@ -155,10 +155,10 @@ index 7f6d8794c..3e53002e8 100644
              return AttentionBackendEnum.ROCM_AITER_FA
  
 diff --git a/vllm/utils/import_utils.py b/vllm/utils/import_utils.py
-index 043798a58..107b82bcb 100644
+index c37b3b6..8e86665 100644
 --- a/vllm/utils/import_utils.py
 +++ b/vllm/utils/import_utils.py
-@@ -500,6 +500,15 @@ def has_triton_kernels() -> bool:
+@@ -445,6 +445,15 @@ def has_triton_kernels() -> bool:
  @cache
  def has_tilelang() -> bool:
      """Whether the optional `tilelang` package is available."""
@@ -175,7 +175,7 @@ index 043798a58..107b82bcb 100644
  
  
 diff --git a/vllm/v1/attention/backends/rocm_aiter_fa.py b/vllm/v1/attention/backends/rocm_aiter_fa.py
-index a9fa45deb..f92dcb9f9 100644
+index a9fa45d..f92dcb9 100644
 --- a/vllm/v1/attention/backends/rocm_aiter_fa.py
 +++ b/vllm/v1/attention/backends/rocm_aiter_fa.py
 @@ -768,12 +768,12 @@ class AiterFlashAttentionBackend(AttentionBackend):
@@ -226,7 +226,7 @@ index a9fa45deb..f92dcb9f9 100644
                      )
  
 diff --git a/vllm/v1/attention/backends/rocm_aiter_unified_attn.py b/vllm/v1/attention/backends/rocm_aiter_unified_attn.py
-index 984fc20ec..de4805e35 100644
+index 984fc20..de4805e 100644
 --- a/vllm/v1/attention/backends/rocm_aiter_unified_attn.py
 +++ b/vllm/v1/attention/backends/rocm_aiter_unified_attn.py
 @@ -129,7 +129,7 @@ class RocmAiterUnifiedAttentionImpl(RocmAttentionImpl):
@@ -239,7 +239,7 @@ index 984fc20ec..de4805e35 100644
          self.unified_attention = unified_attention
          self.supports_quant_query_input = True
 diff --git a/vllm/v1/core/single_type_kv_cache_manager.py b/vllm/v1/core/single_type_kv_cache_manager.py
-index 478effcd7..2e764d668 100644
+index 478effc..2e764d6 100644
 --- a/vllm/v1/core/single_type_kv_cache_manager.py
 +++ b/vllm/v1/core/single_type_kv_cache_manager.py
 @@ -991,6 +991,12 @@ class MambaManager(SingleTypeKVCacheManager):
@@ -256,7 +256,7 @@ index 478effcd7..2e764d668 100644
          for i in range(max_num_blocks - 1, -1, -1):
              if cached_block := block_pool.get_cached_block(
 diff --git a/vllm/v1/sample/ops/topk_topp_sampler.py b/vllm/v1/sample/ops/topk_topp_sampler.py
-index 69b35830a..4930576f3 100644
+index 6f324ce..1545dd2 100644
 --- a/vllm/v1/sample/ops/topk_topp_sampler.py
 +++ b/vllm/v1/sample/ops/topk_topp_sampler.py
 @@ -109,7 +109,7 @@ class TopKTopPSampler(nn.Module):
@@ -266,5 +266,5 @@ index 69b35830a..4930576f3 100644
 -            and rocm_aiter_ops.is_enabled()
 +            and rocm_aiter_ops.is_sampler_enabled()
          ):
-             self.aiter_ops = None
-             self._aiter_ops_import_failed = False
+             try:
+                 import aiter.ops.sampling  # noqa: F401
