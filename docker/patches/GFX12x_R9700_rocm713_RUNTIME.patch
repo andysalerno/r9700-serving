@@ -1,7 +1,8 @@
 diff --git a/vllm/_aiter_ops.py b/vllm/_aiter_ops.py
+index 71fd90d..4442ee5 100644
 --- a/vllm/_aiter_ops.py
 +++ b/vllm/_aiter_ops.py
-@@ -1463,6 +1463,15 @@ class rocm_aiter_ops:
+@@ -1637,6 +1637,15 @@ class rocm_aiter_ops:
      def is_enabled(cls) -> bool:
          return cls._AITER_ENABLED
  
@@ -18,6 +19,7 @@ diff --git a/vllm/_aiter_ops.py b/vllm/_aiter_ops.py
      @if_aiter_supported
      def is_linear_enabled(cls) -> bool:
 diff --git a/vllm/compilation/passes/fusion/rms_quant_fusion.py b/vllm/compilation/passes/fusion/rms_quant_fusion.py
+index 670349a..90c33e1 100644
 --- a/vllm/compilation/passes/fusion/rms_quant_fusion.py
 +++ b/vllm/compilation/passes/fusion/rms_quant_fusion.py
 @@ -44,19 +44,36 @@ _FUSED_ADD_RMS_NORM_OP = torch.ops.vllm_ir.fused_add_rms_norm.default
@@ -64,6 +66,7 @@ diff --git a/vllm/compilation/passes/fusion/rms_quant_fusion.py b/vllm/compilati
  
  
 diff --git a/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py b/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py
+index 21bda8e..258f954 100644
 --- a/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py
 +++ b/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py
 @@ -758,13 +758,13 @@ class BatchedTritonExperts(mk.FusedMoEExpertsModular):
@@ -84,10 +87,136 @@ diff --git a/vllm/model_executor/layers/fused_moe/experts/fused_batched_moe.py b
              p.is_cuda() and p.has_device_capability((8, 9))
          )
  
+diff --git a/vllm/platforms/__init__.py b/vllm/platforms/__init__.py
+index ac536af..c9e2dd9 100644
+--- a/vllm/platforms/__init__.py
++++ b/vllm/platforms/__init__.py
+@@ -119,7 +119,18 @@ def rocm_platform_plugin() -> str | None:
+                 is_rocm = True
+                 logger.debug("Confirmed ROCm platform is available.")
+             else:
+-                logger.debug("ROCm platform is not available because no GPU is found.")
++                import torch
++
++                if torch.version.hip and torch._C._cuda_getDeviceCount() > 0:
++                    is_rocm = True
++                    logger.debug(
++                        "Confirmed ROCm platform is available via PyTorch HIP "
++                        "runtime after AMDSMI returned no GPU handles."
++                    )
++                else:
++                    logger.debug(
++                        "ROCm platform is not available because no GPU is found."
++                    )
+         finally:
+             amdsmi.amdsmi_shut_down()
+     except Exception as e:
+diff --git a/vllm/platforms/rocm.py b/vllm/platforms/rocm.py
+index 4153261..94c0d5d 100644
+--- a/vllm/platforms/rocm.py
++++ b/vllm/platforms/rocm.py
+@@ -81,6 +81,31 @@ _ROCM_DEVICE_ID_NAME_MAP: dict[str, str] = {
+ }
+ 
+ 
++def _patch_torch_rocm_device_count() -> None:
++    """Fallback when PyTorch's AMDSMI count misses devices visible to HIP."""
++    if not torch.version.hip or not hasattr(torch.cuda, "_device_count_amdsmi"):
++        return
++
++    original_device_count_amdsmi = torch.cuda._device_count_amdsmi
++    if getattr(original_device_count_amdsmi, "_vllm_hip_fallback", False):
++        return
++
++    @wraps(original_device_count_amdsmi)
++    def _device_count_amdsmi_with_hip_fallback() -> int:
++        raw_count = original_device_count_amdsmi()
++        if raw_count == 0:
++            hip_count = torch._C._cuda_getDeviceCount()
++            if hip_count > 0:
++                return hip_count
++        return raw_count
++
++    _device_count_amdsmi_with_hip_fallback._vllm_hip_fallback = True
++    torch.cuda._device_count_amdsmi = _device_count_amdsmi_with_hip_fallback
++
++
++_patch_torch_rocm_device_count()
++
++
+ @lru_cache(maxsize=8)
+ def _rocm_device_count_stateless(cuda_visible_devices: str | None = None) -> int:
+     """Get number of ROCm devices, caching based on the value of CUDA_VISIBLE_DEVICES
+@@ -109,7 +134,10 @@ def _rocm_device_count_stateless(cuda_visible_devices: str | None = None) -> int
+         if (hasattr(torch.cuda, "_device_count_amdsmi"))
+         else -1
+     )
+-    r = torch._C._cuda_getDeviceCount() if raw_count < 0 else raw_count
++    # In some ROCm/PyTorch import orders AMDSMI reports zero handles while the
++    # HIP runtime still enumerates devices. Fall back to the raw runtime count
++    # for both failure and zero-handle cases.
++    r = torch._C._cuda_getDeviceCount() if raw_count <= 0 else raw_count
+     return r
+ 
+ 
+@@ -154,11 +182,17 @@ _sync_hip_cuda_env_vars()
+ def with_amdsmi_context(fn):
+     @wraps(fn)
+     def wrapper(*args, **kwargs):
++        initialized = False
+         amdsmi_init()
++        initialized = True
+         try:
+             return fn(*args, **kwargs)
+         finally:
+-            amdsmi_shut_down()
++            if initialized:
++                try:
++                    amdsmi_shut_down()
++                except AmdSmiException as e:
++                    logger.debug("Failed to shut down amdsmi cleanly: %s", e)
+ 
+     return wrapper
+ 
+@@ -190,11 +224,15 @@ def _get_gcn_arch() -> str:
+     Get GCN arch via amdsmi (no CUDA init), fallback to torch.cuda.
+     Called once at module level; result stored in _GCN_ARCH.
+     """
++    for env_var in ("VLLM_ROCM_GCN_ARCH", "PYTORCH_ROCM_ARCH", "GPU_ARCHS"):
++        if gcn_arch := os.environ.get(env_var):
++            return gcn_arch.replace(",", " ").split()[0]
++
+     try:
+         return _query_gcn_arch_from_amdsmi()
+     except Exception as e:
+         logger.debug("Failed to get GCN arch via amdsmi: %s", e)
+-        logger.warning_once(
++        logger.warning(
+             "Failed to get GCN arch via amdsmi, falling back to torch.cuda. "
+             "This will initialize CUDA and may cause "
+             "issues if CUDA_VISIBLE_DEVICES is not set yet."
+@@ -720,7 +758,15 @@ class RocmPlatform(Platform):
+     @lru_cache(maxsize=8)
+     def get_device_name(cls, device_id: int = 0) -> str:
+         physical_device_id = cls.device_id_to_physical_device_id(device_id)
+-        handle = amdsmi_get_processor_handles()[physical_device_id]
++        handles = amdsmi_get_processor_handles()
++        if physical_device_id >= len(handles):
++            logger.warning_once(
++                "AMDSMI returned no handle for device %s; falling back to "
++                "torch.cuda.get_device_name().",
++                device_id,
++            )
++            return torch.cuda.get_device_name(device_id)
++        handle = handles[physical_device_id]
+         asic_info = amdsmi_get_gpu_asic_info(handle)
+         asic_info_device_id: str = asic_info["device_id"]
+         if asic_info_device_id in _ROCM_DEVICE_ID_NAME_MAP:
 diff --git a/vllm/utils/import_utils.py b/vllm/utils/import_utils.py
+index 043798a..107b82b 100644
 --- a/vllm/utils/import_utils.py
 +++ b/vllm/utils/import_utils.py
-@@ -445,6 +445,15 @@ def has_triton_kernels() -> bool:
+@@ -500,6 +500,15 @@ def has_triton_kernels() -> bool:
  @cache
  def has_tilelang() -> bool:
      """Whether the optional `tilelang` package is available."""
@@ -104,6 +233,7 @@ diff --git a/vllm/utils/import_utils.py b/vllm/utils/import_utils.py
  
  
 diff --git a/vllm/v1/attention/backends/rocm_aiter_fa.py b/vllm/v1/attention/backends/rocm_aiter_fa.py
+index bbc65c4..0cac4e0 100644
 --- a/vllm/v1/attention/backends/rocm_aiter_fa.py
 +++ b/vllm/v1/attention/backends/rocm_aiter_fa.py
 @@ -1196,7 +1196,7 @@ class AiterFlashAttentionImpl(AttentionImpl):
@@ -137,9 +267,10 @@ diff --git a/vllm/v1/attention/backends/rocm_aiter_fa.py b/vllm/v1/attention/bac
                      )
  
 diff --git a/vllm/v1/attention/backends/rocm_aiter_unified_attn.py b/vllm/v1/attention/backends/rocm_aiter_unified_attn.py
+index d836316..4693094 100644
 --- a/vllm/v1/attention/backends/rocm_aiter_unified_attn.py
 +++ b/vllm/v1/attention/backends/rocm_aiter_unified_attn.py
-@@ -129,7 +129,7 @@ class RocmAiterUnifiedAttentionImpl(RocmAttentionImpl):
+@@ -140,7 +140,7 @@ class RocmAiterUnifiedAttentionImpl(RocmAttentionImpl):
          logger.info_once(
              "Using aiter unified attention for RocmAiterUnifiedAttentionImpl"
          )
@@ -149,9 +280,10 @@ diff --git a/vllm/v1/attention/backends/rocm_aiter_unified_attn.py b/vllm/v1/att
          self.unified_attention = unified_attention
          self.supports_quant_query_input = True
 diff --git a/vllm/v1/core/single_type_kv_cache_manager.py b/vllm/v1/core/single_type_kv_cache_manager.py
+index e21c20a..d73e5ec 100644
 --- a/vllm/v1/core/single_type_kv_cache_manager.py
 +++ b/vllm/v1/core/single_type_kv_cache_manager.py
-@@ -991,6 +991,12 @@ class MambaManager(SingleTypeKVCacheManager):
+@@ -994,6 +994,12 @@ class MambaManager(SingleTypeKVCacheManager):
  
          block_size = kv_cache_spec.block_size
          max_num_blocks = max_length // block_size
@@ -165,6 +297,7 @@ diff --git a/vllm/v1/core/single_type_kv_cache_manager.py b/vllm/v1/core/single_
          for i in range(max_num_blocks - 1, -1, -1):
              if cached_block := block_pool.get_cached_block(
 diff --git a/vllm/v1/sample/ops/topk_topp_sampler.py b/vllm/v1/sample/ops/topk_topp_sampler.py
+index 69b3583..4930576 100644
 --- a/vllm/v1/sample/ops/topk_topp_sampler.py
 +++ b/vllm/v1/sample/ops/topk_topp_sampler.py
 @@ -109,7 +109,7 @@ class TopKTopPSampler(nn.Module):
@@ -174,5 +307,26 @@ diff --git a/vllm/v1/sample/ops/topk_topp_sampler.py b/vllm/v1/sample/ops/topk_t
 -            and rocm_aiter_ops.is_enabled()
 +            and rocm_aiter_ops.is_sampler_enabled()
          ):
-             try:
-                 import aiter.ops.sampling  # noqa: F401
+             self.aiter_ops = None
+             self._aiter_ops_import_failed = False
+diff --git a/vllm/v1/worker/gpu_worker.py b/vllm/v1/worker/gpu_worker.py
+index 9afc235..7ed8575 100644
+--- a/vllm/v1/worker/gpu_worker.py
++++ b/vllm/v1/worker/gpu_worker.py
+@@ -309,9 +309,14 @@ class Worker(WorkerBase):
+                         f"({len(assigned_physical_gpu_ids)})"
+                     )
+             else:
+-                assert self.local_rank < torch.accelerator.device_count(), (
++                device_count = (
++                    current_platform.device_count()
++                    if current_platform.is_rocm()
++                    else torch.accelerator.device_count()
++                )
++                assert self.local_rank < device_count, (
+                     f"DP adjusted local rank {self.local_rank} is out of "
+-                    f"bounds for {torch.accelerator.device_count()} devices."
++                    f"bounds for {device_count} devices."
+                 )
+ 
+             visible_device_index = (

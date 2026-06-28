@@ -104,7 +104,7 @@ Patch files:
 
 ```text
 docker/patches/GFX12x_R9700_AITER_ENABLEMENT.patch
-docker/patches/GFX12x_R9700_ROCM714_RUNTIME.patch
+docker/patches/GFX12x_R9700_rocm713_RUNTIME.patch
 ```
 
 Patch image:
@@ -118,24 +118,24 @@ The patched Dockerfile starts from `localhost/vllm-rocm-wheel-nightly`, installs
 Use it with the `vllm-rocm-wheel-gfx12x-patched` profile:
 
 ```sh
-podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-nightly build
-podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-gfx12x-patched up --build
+podman compose --env-file .env/env.rocm713 --env-file .env/env.vllm.nightly --profile vllm-rocm-wheel-nightly build
+podman compose --env-file .env/env.rocm713 --env-file .env/env.vllm.nightly --profile vllm-rocm-wheel-gfx12x-patched up --build
 ```
 
 By default, the patched build keeps the AITER wheel bundled by the vLLM wheel
-index. To try AITER v0.1.15, pass both the ROCm SDK env file and the opt-in
-AITER env file when building the patched image:
+index. To try the opt-in AITER wheel, pass the ROCm SDK env file, AITER env
+file, and vLLM version env file when building the patched image:
 
 ```sh
-podman compose --env-file .env/env.rocm714 --env-file .env/aiter-latest.env --profile vllm-rocm-wheel-gfx12x-patched build
+podman compose --env-file .env/env.rocm713 --env-file .env/aiter-latest.env --env-file .env/env.vllm.nightly --profile vllm-rocm-wheel-gfx12x-patched build
 ```
 
 What the split does, briefly:
 
 - `GFX12x_R9700_AITER_ENABLEMENT.patch` treats gfx12x/R9700 as an AITER-supported ROCm architecture in vLLM runtime checks and allows the ROCm AITER attention backend on gfx12x.
-- `GFX12x_R9700_ROCM714_RUNTIME.patch` contains ROCm 7.1.4/nightly runtime fixes needed for vLLM startup and serving, including gfx12x FP8 fused MoE support checks, TileLang import avoidance on gfx12x, AITER unified-attention import/API compatibility, AITER sampler gating, and cache/fusion guards.
+- `GFX12x_R9700_rocm713_RUNTIME.patch` contains ROCm 7.13/nightly runtime fixes needed for vLLM startup and serving, including gfx12x FP8 fused MoE support checks, TileLang import avoidance on gfx12x, AITER unified-attention import/API compatibility, AITER sampler gating, and cache/fusion guards.
 
-These are local runtime patches against the installed vLLM wheel. They do not modify AITER package code, but the ROCm 7.1.4 runtime patch does include vLLM-side compatibility shims for current ROCm/AITER nightly wheel behavior. When the nightly wheel changes, the patches will need to be refreshed if upstream files move or change.
+These are local runtime patches against the installed vLLM wheel. They do not modify AITER package code, but the ROCm 7.13 runtime patch does include vLLM-side compatibility shims for current ROCm/AITER nightly wheel behavior. When the nightly wheel changes, the patches will need to be refreshed if upstream files move or change.
 
 ## Benchmarks
 
