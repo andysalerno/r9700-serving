@@ -27,7 +27,7 @@ check-versions:
     podman run --rm --entrypoint python localhost/vllm-rocm-wheel-gfx12x-patched -c 'import importlib.metadata as md, os, torch; versions = {d.metadata["Name"].lower(): d.version for d in md.distributions()}; [print(f"{name}:", versions.get(name, "not installed")) for name in ("vllm", "amd-aiter", "flydsl", "torch", "triton", "flash-attn", "rocm-sdk-core", "rocm-sdk-devel", "rocm-sdk-libraries", "rocm-sdk-device-gfx1201")]; print("torch.version.hip:", torch.version.hip); [print(f"{key}:", os.environ.get(key)) for key in ("ROCM_PATH", "HIP_PATH", "HIPBLASLT_TENSILE_LIBPATH", "ROCBLAS_TENSILE_LIBPATH")]'
 
 up:
-    podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-gfx12x-patched up
+    podman compose --env-file .env/env.rocm713 --env-file .env/aiter-latest.env --env-file .env/env.vllm.latest --profile vllm-rocm-wheel-gfx12x-patched up
 
 down:
     podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-gfx12x-patched down
