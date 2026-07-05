@@ -283,6 +283,7 @@ services:
   chatui:
     image: ghcr.io/huggingface/chat-ui-db:latest
     container_name: chatui
+    profiles: ["vllm-rocm-wheel", "vllm-rocm-wheel-nightly", "vllm-rocm-wheel-gfx12x-patched"]
     ports:
       - "8001:3000"
     environment:

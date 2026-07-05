@@ -169,7 +169,7 @@ up rocm_env=".env/env.rocm713" vllm_env=".env/env.vllm.latest" patch="gfx12x-pat
             --env-file "$vllm_env" \
             --env-file "$aiter_env" \
             --profile "$profile" \
-            up "$@" "$service"
+            up "$@" "$service" chatui
 
 # Stop/remove every generated vLLM wheel container, regardless of parameter combo.
 down:
@@ -179,12 +179,12 @@ down:
     containers=()
     while IFS= read -r name; do
         case "$name" in
-            vllm-rocm-wheel-*) containers+=("$name") ;;
+            vllm-rocm-wheel-*|chatui) containers+=("$name") ;;
         esac
     done < <(podman ps -a --format '{{ "{{" }}.Names{{ "}}" }}')
 
     if ((${#containers[@]} == 0)); then
-        echo "No generated vLLM wheel containers are present."
+        echo "No generated vLLM wheel or chatui containers are present."
         exit 0
     fi
 

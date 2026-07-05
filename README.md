@@ -36,9 +36,10 @@ just clear-vllm-caches
 
 The defaults are `.env/env.rocm713`, `.env/env.vllm.latest`, `gfx12x-patched`,
 and `.env/env.aiter.bundled`. Use `unpatched` as the patch mode to build/run
-the unpatched base image. `just down` stops/removes every generated
-`vllm-rocm-wheel-*` container, so you do not need to remember the exact
-parameter combination that launched it.
+the unpatched base image. `just up` starts the selected vLLM service plus
+`chatui`; `just down` stops/removes every generated `vllm-rocm-wheel-*`
+container and `chatui`, so you do not need to remember the exact parameter
+combination that launched it.
 
 `just clear-vllm-caches` removes the host cache directories mounted into vLLM:
 Hugging Face, vLLM, Triton, TorchInductor, AITER, COMGR, and TVM FFI caches
