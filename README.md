@@ -13,9 +13,9 @@ Main profiles in `compose.yaml`:
 
 | Profile | What it runs |
 | --- | --- |
-| `vllm-rocm-wheel-nightly` | Nightly vllm in a container with AMD ROCm nightlies for gfx1201, selected by `.env/env.rocm714`. Uses Triton, update `--attention-backend` to try ROCM_ATTN. |
-| `vllm-rocm-wheel-gfx12x-patched` | Builds from the nightly image, applies the custom gfx12x/R9700 patch, and runs AITER unified attention. |
-| `vllm-rocm-wheel` | Builds a pinned non-nightly vLLM ROCm wheel image. |
+| `vllm-rocm-wheel` | Builds/runs the unpatched vLLM ROCm wheel image. Select the vLLM stream with `.env/env.vllm.latest` or `.env/env.vllm.nightly`, and select the ROCm SDK with `.env/env.rocm713` or `.env/env.rocm714`. |
+| `vllm-rocm-wheel-nightly` | Backward-compatible profile alias for `vllm-rocm-wheel`. |
+| `vllm-rocm-wheel-gfx12x-patched` | Builds from the selected `vllm-rocm-wheel` image, applies the custom gfx12x/R9700 patch, and runs AITER unified attention. |
 | `vllm-aml` | Runs the external `aml731/vllm-aiter` image. Note: I can't vet the contents of this container, as it's not mine, but it indeed is very fast and also enables unified attention |
 | `llamacpp-rocm` | Runs llama.cpp's ROCm server image. |
 | `llamacpp-vulkan` | Runs llama.cpp's Vulkan server image. |
@@ -23,60 +23,48 @@ Main profiles in `compose.yaml`:
 
 ## How to run
 
-Replace `PROFILE` with one of the profile names above.
+The preferred entrypoint is `just`. It selects the env files, image names,
+container names, and profiles from explicit choices:
 
 ```sh
-podman compose --env-file .env/env.rocm714 --profile PROFILE build
-podman compose --env-file .env/env.rocm714 --profile PROFILE up
-podman compose --env-file .env/env.rocm714 --profile PROFILE up --build
-podman compose --env-file .env/env.rocm714 --profile PROFILE up -d
-podman compose --env-file .env/env.rocm714 --profile PROFILE down
+just wizard
+just build-images rocm=714 vllm=nightly patch=gfx12x aiter=bundled
+just up rocm=714 vllm=nightly patch=gfx12x aiter=bundled -- -d
+just check-versions rocm=714 vllm=nightly patch=gfx12x aiter=bundled
+just down rocm=714 vllm=nightly patch=gfx12x aiter=bundled
 ```
 
-Example:
+Choices are `rocm=713|714`, `vllm=latest|nightly`, `patch=gfx12x|none`, and
+`aiter=bundled|latest`. Missing choices prompt interactively. Add `--dry-run`
+to print the exact `podman compose` commands without running them:
 
 ```sh
-podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-nightly up --build
+just build-images rocm=713 vllm=latest patch=gfx12x aiter=latest --dry-run
 ```
 
-The patched profile uses `localhost/vllm-rocm-wheel-nightly` as its base image, so build the nightly profile first:
+Images built through `just` are tagged with the selected choices and resolved
+ROCm/vLLM versions, for example:
 
-```sh
-podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-nightly build
-podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-gfx12x-patched build
-podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-gfx12x-patched up
+```text
+localhost/vllm-rocm-wheel:rocm713-sdk<resolved>-vllm-latest-<resolved>-gfx12x-patched-aiter-latest-<resolved>
 ```
 
-To select an explicit ROCm SDK set for builds, pass one of the versioned
-Compose env files:
-
-```sh
-podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-nightly build
-podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-gfx12x-patched build
-```
+The underlying compose setup is still manual and visible. `compose.yaml` uses
+the generated variables `VLLM_BASE_IMAGE`, `VLLM_BASE_CONTAINER_NAME`,
+`VLLM_PATCHED_BASE_IMAGE`, `VLLM_PATCHED_IMAGE`, and
+`VLLM_PATCHED_CONTAINER_NAME`; the Just recipes simply compute and pass them.
+To run compose manually, pass the same env files and variables printed by
+`--dry-run`, then name the vLLM service explicitly so no unrelated no-profile
+services are started.
 
 The ROCm SDK build args are required. Pass `--env-file .env/env.rocm714` for the
 current nightly SDK wheel layout, or `--env-file .env/env.rocm713` for the
-previous stable SDK wheel layout.
-
-If you have `just`, the common build shortcuts are:
-
-```sh
-just build-images-rocm714
-just build-images-rocm714-aiter-latest
-just build-patched-aiter-latest
-just up-aiter-latest
-```
-
-To stop the stack:
-
-```sh
-podman compose --env-file .env/env.rocm714 --profile vllm-rocm-wheel-gfx12x-patched down
-```
+previous stable SDK wheel layout. Pass `--env-file .env/env.vllm.latest` or
+`--env-file .env/env.vllm.nightly` to select the vLLM wheel stream.
 
 ## Updating nightly vLLM wheels
 
-Nightly wheels rotate frequently. If the nightly build fails because the pinned wheel no longer exists, update `compose.yaml`.
+Nightly wheels rotate frequently. If the nightly build fails because the pinned wheel no longer exists, update `.env/env.vllm.nightly`.
 
 For the nightly service, visit the vLLM wheel directory, for example:
 
@@ -84,7 +72,8 @@ For the nightly service, visit the vLLM wheel directory, for example:
 https://wheels.vllm.ai/rocm/nightly/rocm722/vllm
 ```
 
-Copy the current vLLM version from that directory and paste it into the `VLLM_VERSION` build arg for `vllm-rocm-wheel-nightly` in `compose.yaml`.
+Copy the current vLLM version from that directory and paste it into
+`VLLM_VERSION` in `.env/env.vllm.nightly`.
 
 ## Updating nightly ROCm SDK wheels
 
@@ -113,21 +102,24 @@ Patch image:
 docker/Dockerfile.wheel-gfx12x-patched
 ```
 
-The patched Dockerfile starts from `localhost/vllm-rocm-wheel-nightly`, installs the ROCm SDK development files needed at runtime, copies both patches into the image, applies them inside Python `site-packages` with `git apply`, and then `py_compile`s the touched vLLM files. The apply step is idempotent: it applies each patch when possible and reports when a patch is already present.
+The patched Dockerfile starts from the generated `VLLM_PATCHED_BASE_IMAGE`,
+installs the ROCm SDK development files needed at runtime, copies both patches
+into the image, applies them inside Python `site-packages` with `git apply`,
+and then `py_compile`s the touched vLLM files. The apply step is idempotent: it
+applies each patch when possible and reports when a patch is already present.
 
-Use it with the `vllm-rocm-wheel-gfx12x-patched` profile:
+Use it through `just`:
 
 ```sh
-podman compose --env-file .env/env.rocm713 --env-file .env/env.vllm.nightly --profile vllm-rocm-wheel-nightly build
-podman compose --env-file .env/env.rocm713 --env-file .env/env.vllm.nightly --profile vllm-rocm-wheel-gfx12x-patched up --build
+just build-images rocm=713 vllm=nightly patch=gfx12x aiter=bundled
+just up rocm=713 vllm=nightly patch=gfx12x aiter=bundled
 ```
 
 By default, the patched build keeps the AITER wheel bundled by the vLLM wheel
-index. To try the opt-in AITER wheel, pass the ROCm SDK env file, AITER env
-file, and vLLM version env file when building the patched image:
+index. To try the opt-in AITER wheel:
 
 ```sh
-podman compose --env-file .env/env.rocm713 --env-file .env/aiter-latest.env --env-file .env/env.vllm.nightly --profile vllm-rocm-wheel-gfx12x-patched build
+just build-images rocm=713 vllm=nightly patch=gfx12x aiter=latest
 ```
 
 What the split does, briefly:
