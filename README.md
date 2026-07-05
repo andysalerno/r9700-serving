@@ -29,6 +29,7 @@ the ROCm env file, vLLM env file, patch mode, and AITER env file:
 ```sh
 just build-images
 just up
+just logs
 just check-versions
 just down
 just clear-vllm-caches
@@ -40,6 +41,10 @@ the unpatched base image. `just up` starts the selected vLLM service plus
 `chatui`; `just down` stops/removes every generated `vllm-rocm-wheel-*`
 container and `chatui`, so you do not need to remember the exact parameter
 combination that launched it.
+
+`just logs` finds the running generated `vllm-rocm-wheel-*` container and
+follows its logs. It defaults to `--tail 200`; pass a number to change that,
+for example `just logs 1000`.
 
 `just clear-vllm-caches` removes the host cache directories mounted into vLLM:
 Hugging Face, vLLM, Triton, TorchInductor, AITER, COMGR, and TVM FFI caches

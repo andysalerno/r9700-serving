@@ -190,6 +190,35 @@ down:
 
     podman rm -f "${containers[@]}"
 
+# Follow logs for the one running generated vLLM wheel container.
+logs tail="200":
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    tail="$1"
+    containers=()
+    while IFS= read -r name; do
+        case "$name" in
+            vllm-rocm-wheel-*) containers+=("$name") ;;
+        esac
+    done < <(podman ps --format '{{ "{{" }}.Names{{ "}}" }}')
+
+    case "${#containers[@]}" in
+        0)
+            echo "No running generated vLLM wheel container found." >&2
+            exit 1
+            ;;
+        1)
+            exec podman logs --tail "$tail" -f "${containers[0]}"
+            ;;
+        *)
+            echo "Multiple running generated vLLM wheel containers found:" >&2
+            printf '  %s\n' "${containers[@]}" >&2
+            echo "Stop the extra containers or run podman logs directly for the one you want." >&2
+            exit 1
+            ;;
+    esac
+
 # Remove host cache directories mounted into vLLM containers.
 clear-vllm-caches:
     #!/usr/bin/env bash
