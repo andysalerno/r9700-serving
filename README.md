@@ -23,40 +23,47 @@ Main profiles in `compose.yaml`:
 
 ## How to run
 
-The preferred entrypoint is `just`. It selects the env files, image names,
-container names, and profiles from explicit choices:
+The preferred entrypoint is `just`. The recipes take explicit parameters for
+the ROCm env file, vLLM env file, patch mode, and AITER env file:
 
 ```sh
-just wizard
-just build-images rocm=714 vllm=nightly patch=gfx12x aiter=bundled
-just up rocm=714 vllm=nightly patch=gfx12x aiter=bundled -- -d
-just check-versions rocm=714 vllm=nightly patch=gfx12x aiter=bundled
+just build-images
+just up
+just check-versions
 just down
+just clear-vllm-caches
 ```
 
-Choices are `rocm=713|714`, `vllm=latest|nightly`, `patch=gfx12x|none`, and
-`aiter=bundled|latest`. Missing choices prompt interactively, except for
-`just down`, which stops/removes every generated `vllm-rocm-wheel-*` container.
-Add `--dry-run` to print the exact commands without running them:
+The defaults are `.env/env.rocm713`, `.env/env.vllm.latest`, `gfx12x-patched`,
+and `.env/env.aiter.bundled`. Use `unpatched` as the patch mode to build/run
+the unpatched base image. `just down` stops/removes every generated
+`vllm-rocm-wheel-*` container, so you do not need to remember the exact
+parameter combination that launched it.
+
+`just clear-vllm-caches` removes the host cache directories mounted into vLLM:
+Hugging Face, vLLM, Triton, TorchInductor, AITER, COMGR, and TVM FFI caches
+under `~/.cache`.
+
+When passing extra compose args, specify all four recipe parameters first:
 
 ```sh
-just build-images rocm=713 vllm=latest patch=gfx12x aiter=latest --dry-run
+just up .env/env.rocm713 .env/env.vllm.latest gfx12x-patched .env/env.aiter.bundled -- -d
 ```
 
-Images built through `just` are tagged with the selected choices and resolved
-ROCm/vLLM versions, for example:
+Images built through `just` are tagged with the parameter values, not the
+specific versions inside the env files, for example:
 
 ```text
-localhost/vllm-rocm-wheel:rocm713-sdk<resolved>-vllm-latest-<resolved>-gfx12x-patched-aiter-latest-<resolved>
+localhost/vllm-rocm-wheel:rocm713-vllm-latest-gfx12x-patched-aiter-latest
 ```
 
 The underlying compose setup is still manual and visible. `compose.yaml` uses
 the generated variables `VLLM_BASE_IMAGE`, `VLLM_BASE_CONTAINER_NAME`,
 `VLLM_PATCHED_BASE_IMAGE`, `VLLM_PATCHED_IMAGE`, and
-`VLLM_PATCHED_CONTAINER_NAME`; the Just recipes simply compute and pass them.
-To run compose manually, pass the same env files and variables printed by
-`--dry-run`, then name the vLLM service explicitly so no unrelated no-profile
-services are started.
+`VLLM_PATCHED_CONTAINER_NAME`; the Just recipes compute those values directly
+from their parameters and pass them to `podman compose`. To run compose
+manually, use the same env files and variables shown in the Justfile, then name
+the vLLM service explicitly so no unrelated no-profile services are started.
 
 The ROCm SDK build args are required. Pass `--env-file .env/env.rocm714` for the
 current nightly SDK wheel layout, or `--env-file .env/env.rocm713` for the
@@ -112,15 +119,15 @@ applies each patch when possible and reports when a patch is already present.
 Use it through `just`:
 
 ```sh
-just build-images rocm=713 vllm=nightly patch=gfx12x aiter=bundled
-just up rocm=713 vllm=nightly patch=gfx12x aiter=bundled
+just build-images .env/env.rocm713 .env/env.vllm.nightly gfx12x-patched .env/env.aiter.bundled
+just up .env/env.rocm713 .env/env.vllm.nightly gfx12x-patched .env/env.aiter.bundled
 ```
 
 By default, the patched build keeps the AITER wheel bundled by the vLLM wheel
 index. To try the opt-in AITER wheel:
 
 ```sh
-just build-images rocm=713 vllm=nightly patch=gfx12x aiter=latest
+just build-images .env/env.rocm713 .env/env.vllm.nightly gfx12x-patched .env/env.aiter.latest
 ```
 
 What the split does, briefly:

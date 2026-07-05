@@ -1,18 +1,18 @@
 Your task is to make the following bring up vllm successfully:
 
-podman compose --env-file .env/env.rocm713 --env-file .env/env.vllm.latest --env-file .env/aiter-latest.env --profile vllm-rocm-wheel-gfx12x-patched up
+podman compose --env-file .env/env.rocm713 --env-file .env/env.vllm.latest --env-file .env/env.aiter.latest --profile vllm-rocm-wheel-gfx12x-patched up
 
 Note, you must first build the profile it depends upon:
 
-podman compose --env-file .env/env.rocm713 --env-file .env/env.vllm.latest --env-file .env/aiter-latest.env --profile vllm-rocm-wheel-nightly build
+podman compose --env-file .env/env.rocm713 --env-file .env/env.vllm.latest --env-file .env/env.aiter.latest --profile vllm-rocm-wheel build
 
 Followed by:
 
-podman compose --env-file .env/env.rocm713 --env-file .env/env.vllm.latest --env-file .env/aiter-latest.env --profile vllm-rocm-wheel-gfx12x-patched build
+podman compose --env-file .env/env.rocm713 --env-file .env/env.vllm.latest --env-file .env/env.aiter.latest --profile vllm-rocm-wheel-gfx12x-patched build
 
 And then finally try it with:
 
-podman compose --env-file .env/env.rocm713 --env-file .env/env.vllm.latest --env-file .env/aiter-latest.env --profile vllm-rocm-wheel-gfx12x-patched up
+podman compose --env-file .env/env.rocm713 --env-file .env/env.vllm.latest --env-file .env/env.aiter.latest --profile vllm-rocm-wheel-gfx12x-patched up
 
 The goal is, vllm should come up without error, and get to the point (possibly after ~10mins of quantizing and loading the model) where it can respond to a basic chat completiosn request.
 
