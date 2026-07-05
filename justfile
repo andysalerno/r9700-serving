@@ -19,7 +19,7 @@ build-images *args:
 up *args:
     @just _vllm up "$@"
 
-# Stop the selected vLLM service.
+# Stop all generated vLLM containers. Pass choices to stop one selected combo.
 down *args:
     @just _vllm down "$@"
 
@@ -47,6 +47,7 @@ _vllm action *args:
     Usage:
       just build-images [choices...] [-- compose build args...]
       just up           [choices...] [-- compose up args...]
+      just down
       just down         [choices...] [-- compose down args...]
       just check-versions [choices...]
       just wizard [build-images|up|down|check-versions]
@@ -59,7 +60,9 @@ _vllm action *args:
       aiter=bundled|latest
 
     Notes:
-      - Missing choices prompt interactively when a terminal is available.
+      - `just down` with no choices stops/removes every generated vLLM wheel container.
+      - Missing choices prompt interactively when a terminal is available, except for
+        the argument-free `just down` cleanup shortcut.
       - aiter=latest only applies to patch=gfx12x; unpatched images use bundled AITER.
       - Image tags and container names include the selected flavors and resolved
         ROCm/vLLM versions from the .env files.
@@ -168,11 +171,30 @@ _vllm action *args:
         "$@"
     }
 
+    down_all() {
+        local containers=()
+        local name
+
+        while IFS= read -r name; do
+            case "$name" in
+                vllm-rocm-wheel-*) containers+=("$name") ;;
+            esac
+        done < <(podman ps -a --format '{{ "{{" }}.Names{{ "}}" }}')
+
+        if ((${#containers[@]} == 0)); then
+            echo "No generated vLLM wheel containers are present."
+            return 0
+        fi
+
+        run_cmd podman rm -f "${containers[@]}"
+    }
+
     action="${action,,}"
     case "$action" in
         build|build-image|build-images) action="build-images" ;;
         run|start|up) action="up" ;;
         stop|down) action="down" ;;
+        down-all|stop-all|cleanup) action="down-all" ;;
         check|versions|check-versions) action="check-versions" ;;
         plan|print|dry-run)
             action="plan"
@@ -246,6 +268,18 @@ _vllm action *args:
                 ;;
         esac
     done
+
+    if [[ "$action" == "down" && -z "$rocm$vllm$patch$aiter" ]]; then
+        action="down-all"
+    fi
+
+    if [[ "$action" == "down-all" ]]; then
+        if ((${#compose_args[@]} > 0)); then
+            die "compose passthrough args are only supported for targeted down; pass choices or run plain 'just down'"
+        fi
+        down_all
+        exit 0
+    fi
 
     rocm="${rocm,,}"
     vllm="${vllm,,}"

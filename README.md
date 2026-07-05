@@ -31,12 +31,13 @@ just wizard
 just build-images rocm=714 vllm=nightly patch=gfx12x aiter=bundled
 just up rocm=714 vllm=nightly patch=gfx12x aiter=bundled -- -d
 just check-versions rocm=714 vllm=nightly patch=gfx12x aiter=bundled
-just down rocm=714 vllm=nightly patch=gfx12x aiter=bundled
+just down
 ```
 
 Choices are `rocm=713|714`, `vllm=latest|nightly`, `patch=gfx12x|none`, and
-`aiter=bundled|latest`. Missing choices prompt interactively. Add `--dry-run`
-to print the exact `podman compose` commands without running them:
+`aiter=bundled|latest`. Missing choices prompt interactively, except for
+`just down`, which stops/removes every generated `vllm-rocm-wheel-*` container.
+Add `--dry-run` to print the exact commands without running them:
 
 ```sh
 just build-images rocm=713 vllm=latest patch=gfx12x aiter=latest --dry-run
