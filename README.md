@@ -48,7 +48,7 @@ under `~/.cache`.
 When passing extra compose args, specify all four recipe parameters first:
 
 ```sh
-just up .env/env.rocm713 .env/env.vllm.latest gfx12x-patched .env/env.aiter.bundled -- -d
+just up .env/env.rocm713 .env/env.vllm.latest gfx12x-patched .env/env.aiter.bundled
 ```
 
 Images built through `just` are tagged with the parameter values, not the

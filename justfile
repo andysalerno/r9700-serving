@@ -169,7 +169,7 @@ up rocm_env=".env/env.rocm713" vllm_env=".env/env.vllm.latest" patch="gfx12x-pat
             --env-file "$vllm_env" \
             --env-file "$aiter_env" \
             --profile "$profile" \
-            up "$@" "$service" chatui
+            up -d "$@" "$service" chatui
 
 # Stop/remove every generated vLLM wheel container, regardless of parameter combo.
 down:
