@@ -156,7 +156,7 @@ services:
       --tool-call-parser gemma4
       --limit-mm-per-prompt '{"image": 4, "audio": 0}'
       --chat-template /app/chat-templates/gemma4.jinja
-      --default-chat-template-kwargs '{"enable_thinking": true}'
+      --default-chat-template-kwargs '{"enable_thinking": true, "preserve_thinking": true}'
 
       --max-model-len 128000
       --enable-prefix-caching
