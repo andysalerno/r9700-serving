@@ -149,7 +149,7 @@ services:
       --kv-cache-dtype fp8
       -tp 2
       --attention-backend ROCM_AITER_UNIFIED_ATTN
-      --speculative-config '{"method": "mtp", "num_speculative_tokens": 3, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
+      --speculative-config '{"method": "mtp", "num_speculative_tokens": 2, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
 
   vllm-mainline:
     <<: *amd_devices
