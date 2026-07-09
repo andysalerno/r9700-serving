@@ -129,16 +129,38 @@ services:
       # - VLLM_LOGGING_LEVEL=DEBUG
       # - VLLM_USE_NCCL_SYMM_MEM=1
       # - VLLM_DISABLE_PYNCCL=1
+      # Qwen/Qwen3.6-27B-FP8
+      # --tokenizer Qwen/Qwen3.6-27B
+      # --served-model-name qwen3.6-27b
+      # --chat-template /app/chat-templates/qwen36.jinja
+      # --limit-mm-per-prompt '{"image": 99, "audio": 0, "video": 0}'
+      # --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3
+      # --max-model-len 128000
+      # --enable-prefix-caching
+      # --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
+      # --gpu-memory-utilization 0.93
+      # --host 0.0.0.0
+      # --port 8000
+
+      # --dtype auto
+      # --max-num-seqs 4
+      # --kv-cache-dtype fp8
+      # -tp 2
+      # --attention-backend ROCM_AITER_UNIFIED_ATTN
+      # --speculative-config '{"method": "mtp", "num_speculative_tokens": 3, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
     command: >
-      Qwen/Qwen3.6-27B-FP8
-      --tokenizer Qwen/Qwen3.6-27B
-      --served-model-name qwen3.6-27b
-      --chat-template /app/chat-templates/qwen36.jinja
-      --limit-mm-per-prompt '{"image": 99, "audio": 0, "video": 0}'
-      --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3
+      google/gemma-4-31B-it-qat-w4a16-ct
+      --served-model-name gemma-4-31b-it-qat
+      --enable-auto-tool-choice
+      --reasoning-parser gemma4
+      --tool-call-parser gemma4
+      --limit-mm-per-prompt '{"image": 4, "audio": 0}'
+      --chat-template /app/chat-templates/gemma4.jinja
+      --default-chat-template-kwargs '{"enable_thinking": true}'
+
       --max-model-len 128000
       --enable-prefix-caching
-      --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
+      --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 64}'
       --gpu-memory-utilization 0.93
       --host 0.0.0.0
       --port 8000
@@ -148,7 +170,7 @@ services:
       --kv-cache-dtype fp8
       -tp 2
       --attention-backend ROCM_AITER_UNIFIED_ATTN
-      --speculative-config '{"method": "mtp", "num_speculative_tokens": 3, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
+      --speculative-config '{"model": "google/gemma-4-31B-it-assistant", "num_speculative_tokens": 4, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
 
   vllm-mainline:
     <<: *amd_devices
