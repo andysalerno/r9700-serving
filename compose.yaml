@@ -9,6 +9,7 @@ x-vllm-full-cache-volumes: &vllm_full_cache_volumes
   - ${HOME}/.cache/comgr:/root/.cache/comgr:Z
   - ${HOME}/.cache/tvm-ffi:/root/.cache/tvm-ffi:Z
 
+
 x-llamacpp-cache-volumes: &llamacpp_cache_volumes
   - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
   - ${HOME}/.cache/llama.cpp:/root/.cache/llama.cpp:Z
@@ -129,48 +130,25 @@ services:
       # - VLLM_LOGGING_LEVEL=DEBUG
       # - VLLM_USE_NCCL_SYMM_MEM=1
       # - VLLM_DISABLE_PYNCCL=1
-      # Qwen/Qwen3.6-27B-FP8
-      # --tokenizer Qwen/Qwen3.6-27B
-      # --served-model-name qwen3.6-27b
-      # --chat-template /app/chat-templates/qwen36.jinja
-      # --limit-mm-per-prompt '{"image": 99, "audio": 0, "video": 0}'
-      # --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3
-      # --max-model-len 128000
-      # --enable-prefix-caching
-      # --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
-      # --gpu-memory-utilization 0.93
-      # --host 0.0.0.0
-      # --port 8000
-
-      # --dtype auto
-      # --max-num-seqs 4
-      # --kv-cache-dtype fp8
-      # -tp 2
-      # --attention-backend ROCM_AITER_UNIFIED_ATTN
-      # --speculative-config '{"method": "mtp", "num_speculative_tokens": 3, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
     command: >
-      google/gemma-4-31B-it-qat-w4a16-ct
-      --served-model-name gemma-4-31b-it-qat
-      --enable-auto-tool-choice
-      --reasoning-parser gemma4
-      --tool-call-parser gemma4
-      --limit-mm-per-prompt '{"image": 4, "audio": 0}'
-      --chat-template /app/chat-templates/gemma4.jinja
-      --default-chat-template-kwargs '{"enable_thinking": true, "preserve_thinking": true}'
-
+      Qwen/Qwen3.6-27B-FP8
+      --tokenizer Qwen/Qwen3.6-27B
+      --served-model-name qwen3.6-27b
+      --chat-template /app/chat-templates/qwen36.jinja
+      --limit-mm-per-prompt '{"image": 10, "audio": 0, "video": 0}'
+      --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3
       --max-model-len 128000
       --enable-prefix-caching
-      --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 64}'
+      --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
       --gpu-memory-utilization 0.93
       --host 0.0.0.0
       --port 8000
-
       --dtype auto
       --max-num-seqs 4
       --kv-cache-dtype fp8
       -tp 2
       --attention-backend ROCM_AITER_UNIFIED_ATTN
-      --speculative-config '{"model": "google/gemma-4-31B-it-assistant", "num_speculative_tokens": 4, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
+      --speculative-config '{"method": "mtp", "num_speculative_tokens": 3, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
 
   vllm-mainline:
     <<: *amd_devices
@@ -374,86 +352,23 @@ volumes:
   chat-ui-hermes-data:
   aspire-dashboard-dp-keys:
 
-
-######
-# Old / for testing only
-######
-
-  # vllm-qwen36-27b-fp8-aml731:
-  #   <<: *amd_devices
-  #   image: aml731/vllm-aiter:v0.20.2
-  #   profiles: ["vllm-aml"]
-  #   container_name: vllm-qwen36-27b-fp8-aml731
-  #   volumes: *vllm_full_cache_volumes
-  #   networks:
-  #     default:
-  #       aliases:
-  #         - llm-backend
-  #   environment:
-  #     - VLLM_ROCM_USE_AITER=1
-  #     - VLLM_ROCM_ALLOW_RDNA4_AITER_ATTENTION=1
-  #     - VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION=1
-  #     # - VLLM_V1_USE_PREFILL_DECODE_ATTENTION=0 # adding seems to slow down tg at 60000
-  #     - VLLM_ROCM_USE_AITER_MHA=1
-  #     - VLLM_ROCM_USE_AITER_PAGED_ATTN=0
-  #     - VLLM_ROCM_USE_AITER_MOE=0
-  #     - VLLM_ROCM_USE_AITER_LINEAR=0
-  #     - FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
-  #     - PYTORCH_ALLOC_CONF=expandable_segments:True
-  #     # --speculative-config '{"method":"mtp","num_speculative_tokens":3}'
-  #   command: >
-  #     python3 -m vllm.entrypoints.openai.api_server
-  #     --model Qwen/Qwen3.6-27B-FP8
-  #     --served-model-name qwen3.6-27b
-  #     -tp 2
-  #     --kv-cache-dtype fp8
-  #     --dtype auto
-  #     --attention-backend ROCM_AITER_UNIFIED_ATTN
-  #     --compilation-config '{"pass_config":{"fuse_norm_quant":false}}'
-  #     --max-model-len 128000
-  #     --gpu-memory-utilization 0.95
-  #     --enable-chunked-prefill
-  #     --max-num-batched-tokens 8192
-  #     --enable-prefix-caching
-  #     --trust-remote-code
-  #     --quantization fp8
-  #     --max-num-seqs 4
-  #     --enable-auto-tool-choice
-  #     --tool-call-parser qwen3_coder
-  #     --reasoning-parser qwen3
-  #     --host 0.0.0.0
-  #     --port 8000
-  #     --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
-
-  # atom:
-  #   profiles: ["atom"]
-  #   image: docker.io/rocm/atom-dev:vllm-latest
-  #   <<: *amd_devices
-  #   container_name: atom-dev
-  #   ports:
-  #     - "8000:8000"
-  #   networks:
-  #     default:
-  #       aliases:
-  #         - llm-backend
-  #   volumes:
-  #     - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
-  #     - ./chat-templates/:/app/chat-templates:Z
-
-  #   env_file:
-  #     - .env/2xr9700.vllm.common
-  #     - .env/nccl-fix
-  #   command: >
-  #     vllm serve Qwen/Qwen3.6-27B-FP8
-  #     --tokenizer Qwen/Qwen3.6-27B
-  #     --served-model-name qwen3.6-27b
-  #     --limit-mm-per-prompt '{"image": 0, "audio": 0, "video": 0}'
-  #     --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3
-  #     --max-model-len 128000
-  #     --enable-prefix-caching
-  #     --max-num-seqs 4
-  #     -tp 2
-  #     --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
-  #     --gpu-memory-utilization 0.93
-  #     --host 0.0.0.0
-  #     --port 8000
+# Keeping this around since it is useful:
+# google/gemma-4-31B-it-qat-w4a16-ct
+# --served-model-name gemma-4-31b-it-qat
+# --enable-auto-tool-choice
+# --reasoning-parser gemma4
+# --tool-call-parser gemma4
+# --limit-mm-per-prompt '{"image": 4, "audio": 0}'
+# --chat-template /app/chat-templates/gemma4.jinja
+# --default-chat-template-kwargs '{"enable_thinking": true, "preserve_thinking": true}'
+# --max-model-len 128000
+# --enable-prefix-caching
+# --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 64}'
+# --gpu-memory-utilization 0.93
+# --host 0.0.0.0
+# --port 8000
+# --dtype auto
+# --max-num-seqs 4
+# -tp 2
+# --attention-backend ROCM_AITER_UNIFIED_ATTN
+# --speculative-config '{"model": "google/gemma-4-31B-it-assistant", "num_speculative_tokens": 2, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
