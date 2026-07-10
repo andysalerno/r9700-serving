@@ -95,11 +95,9 @@ services:
         ROCM_WHEEL_INDEX_URL: "${ROCM_WHEEL_INDEX_URL-https://rocm.nightlies.amd.com/whl-multi-arch/}"
         ROCM_SDK_DEVEL_VERSION: "${ROCM_SDK_DEVEL_VERSION:?set ROCM_SDK_DEVEL_VERSION with --env-file .env/env.rocm714 or .env/env.rocm713}"
         ROCM_SDK_LIBRARIES_DIR: "${ROCM_SDK_LIBRARIES_DIR:?set ROCM_SDK_LIBRARIES_DIR with --env-file .env/env.rocm714 or .env/env.rocm713}"
-        USE_LATEST_AITER: "${USE_LATEST_AITER-0}"
+        USE_LATEST_AITER: "${USE_LATEST_AITER:?set USE_LATEST_AITER with --env-file .env/env.aiter.bundled or .env/env.aiter.latest}"
         AITER_LATEST_WHEEL_URL:
-        AITER_LATEST_WHEEL_FILENAME:
         AITER_LATEST_FLYDSL_WHEEL_URL:
-        AITER_LATEST_FLYDSL_WHEEL_FILENAME:
     container_name: ${VLLM_PATCHED_CONTAINER_NAME:-vllm-rocm-wheel-manual-gfx12x-patched}
     ports:
       - "8000:8000"

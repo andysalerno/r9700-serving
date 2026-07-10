@@ -16,13 +16,9 @@ ARG ROCM_WHEEL_INDEX_URL=https://rocm.nightlies.amd.com/whl-multi-arch/
 ARG ROCM_SDK_DEVEL_VERSION
 ARG ROCM_SDK_LIBRARIES_DIR=_rocm_sdk_libraries
 # ARG ROCM_SDK_LIBRARIES_DIR=_rocm_sdk_libraries_gfx120X_all
-ARG USE_LATEST_AITER=0
-# vLLM's ROCm 7.2/7.3 wheel index currently uses torch 2.10; AITER's ROCm 7.1
-# v0.1.15 wheel is the torch-2.10 ABI build.
-ARG AITER_LATEST_WHEEL_URL=https://github.com/ROCm/aiter/releases/download/v0.1.15/amd_aiter-0.1.15%2Brocm7.1.manylinux.2.28-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
-ARG AITER_LATEST_WHEEL_FILENAME=amd_aiter-0.1.15+rocm7.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
-ARG AITER_LATEST_FLYDSL_WHEEL_URL=https://rocm.frameworks-devreleases.amd.com/whl-staging/gfx942-gfx950/flydsl-0.1.9.dev20260529%2Bd7ae22d-cp312-cp312-manylinux_2_27_x86_64.whl
-ARG AITER_LATEST_FLYDSL_WHEEL_FILENAME=flydsl-0.1.9.dev20260529+d7ae22d-cp312-cp312-manylinux_2_27_x86_64.whl
+ARG USE_LATEST_AITER
+ARG AITER_LATEST_WHEEL_URL
+ARG AITER_LATEST_FLYDSL_WHEEL_URL
 
 ENV ROCM_PATH=${SP}/_rocm_sdk_devel
 ENV ROCM_HOME=${SP}/_rocm_sdk_devel
@@ -66,19 +62,16 @@ os.remove(tar_path)
 PY
 
 RUN set -eux; \
-    case "${USE_LATEST_AITER}" in \
+    case "${USE_LATEST_AITER:?USE_LATEST_AITER must be set}" in \
         0|false|FALSE|no|NO|"") \
             echo "Keeping AITER from the base vLLM wheel image"; \
             ;; \
         1|true|TRUE|yes|YES) \
+            : "${AITER_LATEST_WHEEL_URL:?AITER_LATEST_WHEEL_URL must be set when USE_LATEST_AITER is enabled}"; \
+            : "${AITER_LATEST_FLYDSL_WHEEL_URL:?AITER_LATEST_FLYDSL_WHEEL_URL must be set when USE_LATEST_AITER is enabled}"; \
             PYTHON_BIN="$(command -v python || command -v python3)"; \
-            FLYDSL_WHEEL="/tmp/${AITER_LATEST_FLYDSL_WHEEL_FILENAME}"; \
-            AITER_WHEEL="/tmp/${AITER_LATEST_WHEEL_FILENAME}"; \
-            curl -fL "${AITER_LATEST_FLYDSL_WHEEL_URL}" -o "${FLYDSL_WHEEL}"; \
-            uv pip install --force-reinstall --no-deps "${FLYDSL_WHEEL}"; \
-            curl -fL "${AITER_LATEST_WHEEL_URL}" -o "${AITER_WHEEL}"; \
-            UV_SKIP_WHEEL_FILENAME_CHECK=1 uv pip install --force-reinstall --no-deps "${AITER_WHEEL}"; \
-            rm -f "${FLYDSL_WHEEL}" "${AITER_WHEEL}"; \
+            uv pip install --force-reinstall --no-deps "${AITER_LATEST_FLYDSL_WHEEL_URL}"; \
+            UV_SKIP_WHEEL_FILENAME_CHECK=1 uv pip install --force-reinstall --no-deps "${AITER_LATEST_WHEEL_URL}"; \
             "${PYTHON_BIN}" -c 'import importlib.metadata as md, importlib.util, torch, triton; assert importlib.util.find_spec("aiter") is not None; print("amd-aiter", md.version("amd-aiter")); print("flydsl", md.version("flydsl")); print("torch", torch.__version__); print("triton", triton.__version__)'; \
             ;; \
         *) \
