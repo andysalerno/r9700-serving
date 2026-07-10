@@ -86,6 +86,10 @@ ENV HIPBLASLT_TENSILE_LIBPATH=${SP}/${ROCM_SDK_LIBRARIES_DIR}/lib/hipblaslt/libr
 ENV ROCBLAS_TENSILE_LIBPATH=${SP}/${ROCM_SDK_LIBRARIES_DIR}/lib/rocblas/library
 ENV LD_LIBRARY_PATH=${SP}/torch/lib:${SP}/_rocm_sdk_devel/lib:${SP}/_rocm_sdk_core/lib:${SP}/_rocm_sdk_core/lib/llvm/lib:${SP}/_rocm_sdk_core/lib/rocm_sysdeps/lib:${SP}/_rocm_sdk_core/lib/host-math/lib:${SP}/_rocm_sdk_libraries/lib:${SP}/_rocm_sdk_libraries_gfx120X_all/lib:${LD_LIBRARY_PATH}
 
+COPY --chmod=755 .env/normalize-hipblaslt-layout.sh /tmp/normalize-hipblaslt-layout.sh
+RUN /tmp/normalize-hipblaslt-layout.sh "${HIPBLASLT_TENSILE_LIBPATH}" "${GFX_ARCH}" \
+    && rm /tmp/normalize-hipblaslt-layout.sh
+
 ENV HIP_PLATFORM=amd \
     VLLM_TARGET_DEVICE=rocm \
     VLLM_ROCM_GCN_ARCH=${GFX_ARCH} \

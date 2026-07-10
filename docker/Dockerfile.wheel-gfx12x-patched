@@ -32,6 +32,10 @@ ENV HIPBLASLT_TENSILE_LIBPATH=${SP}/${ROCM_SDK_LIBRARIES_DIR}/lib/hipblaslt/libr
 ENV ROCBLAS_TENSILE_LIBPATH=${SP}/${ROCM_SDK_LIBRARIES_DIR}/lib/rocblas/library
 ENV LD_LIBRARY_PATH=${SP}/_rocm_sdk_devel/lib:${LD_LIBRARY_PATH}
 
+COPY --chmod=755 .env/normalize-hipblaslt-layout.sh /tmp/normalize-hipblaslt-layout.sh
+RUN /tmp/normalize-hipblaslt-layout.sh "${HIPBLASLT_TENSILE_LIBPATH}" "${GFX_ARCH}" \
+    && rm /tmp/normalize-hipblaslt-layout.sh
+
 RUN set -eux; \
     PYTHON_BIN="$(command -v python || command -v python3)"; \
     uv pip install --no-deps \

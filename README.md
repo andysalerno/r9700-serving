@@ -106,6 +106,8 @@ Run `.env/latest-rocm-sdk-core.sh` to print the latest version from the
 
 For gfx1201, keep `ROCM_SDK_CORE_VERSION`, `ROCM_SDK_LIBRARIES_VERSION`, and `ROCM_SDK_DEVEL_VERSION` on the same nightly version in `.env/env.rocm714`. Compose service `env_file` entries do not feed `build.args`, so these build values are supplied through Compose variable interpolation and selected with `podman compose --env-file ...`.
 
+The `.env/normalize-hipblaslt-layout.sh` build helper normalizes both ROCm SDK hipBLASLt layouts: the flat 7.13 layout and the newer multi-arch layout that stores gfx1201 artifacts under `library/gfx1201/`.
+
 The old stable ROCm wheel index and 7.13 package names live in `.env/env.rocm713`.
 
 ## Custom gfx12x/R9700 patches
