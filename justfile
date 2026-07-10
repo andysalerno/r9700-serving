@@ -103,6 +103,10 @@ build-images rocm_env=".env/env.rocm713" vllm_env=".env/env.vllm.latest" patch="
 #   just up .env/env.rocm713 .env/env.vllm.latest gfx12x-patched .env/env.aiter.bundled -- -d
 
 # Launch the selected vLLM service.
+[arg("aiter_env", long="aiter-env")]
+[arg("patch", long)]
+[arg("rocm_env", long="rocm-env")]
+[arg("vllm_env", long="vllm-env")]
 up rocm_env=".env/env.rocm713" vllm_env=".env/env.vllm.latest" patch="gfx12x-patched" aiter_env=".env/env.aiter.bundled" *compose_args:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -245,6 +249,10 @@ clear-vllm-caches:
     done
 
 # Print installed package/runtime versions from the selected image.
+[arg("aiter_env", long="aiter-env")]
+[arg("patch", long)]
+[arg("rocm_env", long="rocm-env")]
+[arg("vllm_env", long="vllm-env")]
 check-versions rocm_env=".env/env.rocm713" vllm_env=".env/env.vllm.latest" patch="gfx12x-patched" aiter_env=".env/env.aiter.bundled":
     #!/usr/bin/env bash
     set -euo pipefail
