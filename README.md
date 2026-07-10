@@ -80,6 +80,10 @@ previous stable SDK wheel layout. Pass `--env-file .env/env.vllm.latest` or
 
 Nightly wheels rotate frequently. If the nightly build fails because the pinned wheel no longer exists, update `.env/env.vllm.nightly`.
 
+Run `.env/latest-vllm-wheel.sh` to print the latest version from the default
+nightly wheel directory. Pass a wheel directory URL as its first argument to
+check another ROCm stream.
+
 For the nightly service, visit the vLLM wheel directory, for example:
 
 ```text
@@ -96,6 +100,9 @@ The ROCm SDK wheels come from:
 ```text
 https://rocm.nightlies.amd.com/whl-multi-arch/
 ```
+
+Run `.env/latest-rocm-sdk-core.sh` to print the latest version from the
+`rocm-sdk-core` index as a reference when updating `.env/env.rocm714`.
 
 For gfx1201, keep `ROCM_SDK_CORE_VERSION`, `ROCM_SDK_LIBRARIES_VERSION`, and `ROCM_SDK_DEVEL_VERSION` on the same nightly version in `.env/env.rocm714`. Compose service `env_file` entries do not feed `build.args`, so these build values are supplied through Compose variable interpolation and selected with `podman compose --env-file ...`.
 
