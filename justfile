@@ -71,32 +71,37 @@ build-images rocm_env=".env/env.rocm713" vllm_env=".env/env.vllm.latest" patch="
     base_container="vllm-rocm-wheel-${base_tag}"
     target_container="vllm-rocm-wheel-${target_tag}"
 
-    env \
-        "VLLM_BASE_IMAGE=$base_image" \
-        "VLLM_BASE_CONTAINER_NAME=$base_container" \
-        "VLLM_PATCHED_BASE_IMAGE=$base_image" \
-        "VLLM_PATCHED_IMAGE=$target_image" \
-        "VLLM_PATCHED_CONTAINER_NAME=$target_container" \
-        podman compose \
+    run_compose() {
+        local command=(
+            env
+            "VLLM_BASE_IMAGE=$base_image"
+            "VLLM_BASE_CONTAINER_NAME=$base_container"
+            "VLLM_PATCHED_BASE_IMAGE=$base_image"
+            "VLLM_PATCHED_IMAGE=$target_image"
+            "VLLM_PATCHED_CONTAINER_NAME=$target_container"
+            podman compose
+            "$@"
+        )
+        printf 'Running:'
+        printf ' %q' "${command[@]}"
+        printf '\n'
+        "${command[@]}"
+    }
+
+    run_compose \
+        --env-file "$rocm_env" \
+        --env-file "$vllm_env" \
+        --env-file "$aiter_env" \
+        --profile vllm-rocm-wheel \
+        build "$@" vllm-rocm-wheel
+
+    if [[ "$profile" == "vllm-rocm-wheel-gfx12x-patched" ]]; then
+        run_compose \
             --env-file "$rocm_env" \
             --env-file "$vllm_env" \
             --env-file "$aiter_env" \
-            --profile vllm-rocm-wheel \
-            build "$@" vllm-rocm-wheel
-
-    if [[ "$profile" == "vllm-rocm-wheel-gfx12x-patched" ]]; then
-        env \
-            "VLLM_BASE_IMAGE=$base_image" \
-            "VLLM_BASE_CONTAINER_NAME=$base_container" \
-            "VLLM_PATCHED_BASE_IMAGE=$base_image" \
-            "VLLM_PATCHED_IMAGE=$target_image" \
-            "VLLM_PATCHED_CONTAINER_NAME=$target_container" \
-            podman compose \
-                --env-file "$rocm_env" \
-                --env-file "$vllm_env" \
-                --env-file "$aiter_env" \
-                --profile vllm-rocm-wheel-gfx12x-patched \
-                build "$@" vllm-rocm-wheel-gfx12x-patched
+            --profile vllm-rocm-wheel-gfx12x-patched \
+            build "$@" vllm-rocm-wheel-gfx12x-patched
     fi
 
 # Example with compose up args:
@@ -166,18 +171,29 @@ up rocm_env=".env/env.rocm713" vllm_env=".env/env.vllm.latest" patch="gfx12x-pat
     base_container="vllm-rocm-wheel-${base_tag}"
     target_container="vllm-rocm-wheel-${target_tag}"
 
-    env \
-        "VLLM_BASE_IMAGE=$base_image" \
-        "VLLM_BASE_CONTAINER_NAME=$base_container" \
-        "VLLM_PATCHED_BASE_IMAGE=$base_image" \
-        "VLLM_PATCHED_IMAGE=$target_image" \
-        "VLLM_PATCHED_CONTAINER_NAME=$target_container" \
-        podman compose \
-            --env-file "$rocm_env" \
-            --env-file "$vllm_env" \
-            --env-file "$aiter_env" \
-            --profile "$profile" \
-            up -d "$@" "$service" chatui
+    run_compose() {
+        local command=(
+            env
+            "VLLM_BASE_IMAGE=$base_image"
+            "VLLM_BASE_CONTAINER_NAME=$base_container"
+            "VLLM_PATCHED_BASE_IMAGE=$base_image"
+            "VLLM_PATCHED_IMAGE=$target_image"
+            "VLLM_PATCHED_CONTAINER_NAME=$target_container"
+            podman compose
+            "$@"
+        )
+        printf 'Running:'
+        printf ' %q' "${command[@]}"
+        printf '\n'
+        "${command[@]}"
+    }
+
+    run_compose \
+        --env-file "$rocm_env" \
+        --env-file "$vllm_env" \
+        --env-file "$aiter_env" \
+        --profile "$profile" \
+        up -d "$@" "$service" chatui
 
 # Stop/remove every generated vLLM wheel container, regardless of parameter combo.
 down:
