@@ -233,7 +233,7 @@ clear-vllm-caches:
     set -euo pipefail
 
     cache_dirs=(
-        "$HOME/.cache/huggingface"
+        # "$HOME/.cache/huggingface"
         "$HOME/.cache/vllm"
         "$HOME/.cache/triton"
         "$HOME/.cache/torchinductor"
