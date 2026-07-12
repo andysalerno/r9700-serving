@@ -5,6 +5,7 @@ The selected vllm profile serves on port `8000`. `chatui` is exposed on port `80
 ## Requirements
 
 - Podman with `podman compose` (`docker` should work, but is untested)
+- [`just`](https://just.systems/) is optional, but recommended for the command-building recipes below
 - 1 or more R9700 (default compose files assume 2 with `-tp 2`, cause that's what I have)
 
 ## Compose profiles
@@ -23,8 +24,14 @@ Main profiles in `compose.yaml`:
 
 ## How to run
 
-The preferred entrypoint is `just`. The recipes take explicit parameters for
-the ROCm env file, vLLM env file, patch mode, and AITER env file:
+The preferred entrypoint is `just`, which acts as a convenience layer over
+`podman compose`. The recipes select the required env files and profile,
+generate consistent image/container names, print the exact command as
+`Running: ...`, and then execute it. They do not replace Compose; see
+[Running Compose directly](#running-compose-directly) below.
+
+List the available recipes with `just --list`. The default patched
+ROCm 7.13/latest-vLLM workflow is:
 
 ```sh
 just build-images
@@ -35,46 +42,103 @@ just down
 just clear-vllm-caches
 ```
 
-The defaults are `.env/env.rocm713`, `.env/env.vllm.latest`, `gfx12x-patched`,
-and `.env/env.aiter.bundled`. Use `unpatched` as the patch mode to build/run
-the unpatched base image. `just up` starts the selected vLLM service plus
-`chatui`; `just down` stops/removes every generated `vllm-rocm-wheel-*`
-container and `chatui`, so you do not need to remember the exact parameter
-combination that launched it.
+The selection options, all of which have defaults, are:
+
+| Option | Default | Choices |
+| --- | --- | --- |
+| `--rocm-env` | `.env/env.rocm713` | `.env/env.rocm713` or `.env/env.rocm714` |
+| `--vllm-env` | `.env/env.vllm.latest` | `.env/env.vllm.latest` or `.env/env.vllm.nightly` |
+| `--patch` | `gfx12x-patched` | `gfx12x-patched` or `unpatched` |
+| `--aiter-env` | `.env/env.aiter.bundled` | `.env/env.aiter.bundled` or `.env/env.aiter.latest` |
+
+For example, to use the ROCm 7.14 and nightly vLLM env files with the patched
+image and latest AITER wheel:
+
+```sh
+just build-images \
+  --rocm-env .env/env.rocm714 \
+  --vllm-env .env/env.vllm.nightly \
+  --patch gfx12x-patched \
+  --aiter-env .env/env.aiter.latest
+
+just up \
+  --rocm-env .env/env.rocm714 \
+  --vllm-env .env/env.vllm.nightly \
+  --patch gfx12x-patched \
+  --aiter-env .env/env.aiter.latest
+```
+
+Use `--patch unpatched` with `.env/env.aiter.bundled` to build or run only the
+unpatched base image. `just build-images` builds the base image first and then
+the patched image when requested. `just up` starts the selected vLLM service
+plus `chatui`.
+
+Pass additional Compose arguments after `--`:
+
+```sh
+just build-images --vllm-env .env/env.vllm.nightly -- --no-cache
+just up --vllm-env .env/env.vllm.nightly -- --force-recreate
+```
+
+`just down` stops/removes every generated `vllm-rocm-wheel-*` container and
+`chatui`, so you do not need to remember the option combination that launched
+it.
 
 `just logs` finds the running generated `vllm-rocm-wheel-*` container and
 follows its logs. It defaults to `--tail 200`; pass a number to change that,
 for example `just logs 1000`.
 
 `just clear-vllm-caches` removes the host cache directories mounted into vLLM:
-Hugging Face, vLLM, Triton, TorchInductor, AITER, COMGR, and TVM FFI caches
-under `~/.cache`.
-
-When passing extra compose args, specify all four recipe parameters first:
-
-```sh
-just up .env/env.rocm713 .env/env.vllm.latest gfx12x-patched .env/env.aiter.bundled
-```
+vLLM, Triton, TorchInductor, AITER, COMGR, and TVM FFI caches under `~/.cache`.
 
 Images built through `just` are tagged with the parameter values, not the
 specific versions inside the env files, for example:
 
 ```text
-localhost/vllm-rocm-wheel:rocm713-vllm-latest-gfx12x-patched-aiter-latest
+localhost/vllm-rocm-wheel:rocm713-vllm-latest-gfx12x-patched-aiter-bundled
 ```
 
-The underlying compose setup is still manual and visible. `compose.yaml` uses
-the generated variables `VLLM_BASE_IMAGE`, `VLLM_BASE_CONTAINER_NAME`,
-`VLLM_PATCHED_BASE_IMAGE`, `VLLM_PATCHED_IMAGE`, and
-`VLLM_PATCHED_CONTAINER_NAME`; the Just recipes compute those values directly
-from their parameters and pass them to `podman compose`. To run compose
-manually, use the same env files and variables shown in the Justfile, then name
-the vLLM service explicitly so no unrelated no-profile services are started.
+### Running Compose directly
 
-The ROCm SDK build args are required. Pass `--env-file .env/env.rocm714` for the
-current nightly SDK wheel layout, or `--env-file .env/env.rocm713` for the
-previous stable SDK wheel layout. Pass `--env-file .env/env.vllm.latest` or
-`--env-file .env/env.vllm.nightly` to select the vLLM wheel stream.
+`just` is optional. The equivalent patched workflow can be run directly with
+`podman compose`:
+
+```sh
+# Build the unpatched base image required by the patched image.
+podman compose \
+  --env-file .env/env.rocm713 \
+  --env-file .env/env.vllm.latest \
+  --env-file .env/env.aiter.bundled \
+  --profile vllm-rocm-wheel \
+  build vllm-rocm-wheel
+
+# Build the patched image.
+podman compose \
+  --env-file .env/env.rocm713 \
+  --env-file .env/env.vllm.latest \
+  --env-file .env/env.aiter.bundled \
+  --profile vllm-rocm-wheel-gfx12x-patched \
+  build vllm-rocm-wheel-gfx12x-patched
+
+# Start the patched vLLM service and Chat UI.
+podman compose \
+  --env-file .env/env.rocm713 \
+  --env-file .env/env.vllm.latest \
+  --env-file .env/env.aiter.bundled \
+  --profile vllm-rocm-wheel-gfx12x-patched \
+  up -d vllm-rocm-wheel-gfx12x-patched chatui
+```
+
+To run the unpatched image, skip the patched build and use
+`--profile vllm-rocm-wheel` with service `vllm-rocm-wheel`. You can also omit
+`chatui` when starting only the backend.
+
+The ROCm and vLLM env files are required because Compose uses them for build
+argument interpolation. Direct commands use the `manual-*` image and container
+name defaults in `compose.yaml`. For the selection-specific names used by the
+recipes, copy the `Running: ...` command printed by `just`, including its
+`VLLM_*` environment variables, or construct the same values from the
+Justfile.
 
 ## Updating nightly vLLM wheels
 
