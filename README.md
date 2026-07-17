@@ -14,7 +14,7 @@ Main profiles in `compose.yaml`:
 
 | Profile | What it runs |
 | --- | --- |
-| `vllm-rocm-wheel` | Builds/runs the unpatched vLLM ROCm wheel image. Select the vLLM stream with `.env/env.vllm.latest` or `.env/env.vllm.nightly`, and select the ROCm SDK with `.env/env.rocm713` or `.env/env.rocm714`. |
+| `vllm-rocm-wheel` | Builds/runs the unpatched vLLM ROCm wheel image. Select the vLLM stream with `.env/env.vllm.latest` or `.env/env.vllm.nightly`, and select the ROCm SDK with `.env/env.rocm713`, `.env/env.rocm714`, or `.env/env.rocm715`. |
 | `vllm-rocm-wheel-nightly` | Backward-compatible profile alias for `vllm-rocm-wheel`. |
 | `vllm-rocm-wheel-gfx12x-patched` | Builds from the selected `vllm-rocm-wheel` image, applies the custom gfx12x/R9700 patch, and runs AITER unified attention. |
 | `vllm-aml` | Runs the external `aml731/vllm-aiter` image. Note: I can't vet the contents of this container, as it's not mine, but it indeed is very fast and also enables unified attention |
@@ -46,23 +46,23 @@ The selection options, all of which have defaults, are:
 
 | Option | Default | Choices |
 | --- | --- | --- |
-| `--rocm-env` | `.env/env.rocm713` | `.env/env.rocm713` or `.env/env.rocm714` |
+| `--rocm-env` | `.env/env.rocm713` | `.env/env.rocm713`, `.env/env.rocm714`, or `.env/env.rocm715` |
 | `--vllm-env` | `.env/env.vllm.latest` | `.env/env.vllm.latest` or `.env/env.vllm.nightly` |
 | `--patch` | `gfx12x-patched` | `gfx12x-patched` or `unpatched` |
 | `--aiter-env` | `.env/env.aiter.bundled` | `.env/env.aiter.bundled` or `.env/env.aiter.latest` |
 
-For example, to use the ROCm 7.14 and nightly vLLM env files with the patched
+For example, to use the ROCm 7.15 and vLLM nightly env files with the patched
 image and latest AITER wheel:
 
 ```sh
 just build-images \
-  --rocm-env .env/env.rocm714 \
+  --rocm-env .env/env.rocm715 \
   --vllm-env .env/env.vllm.nightly \
   --patch gfx12x-patched \
   --aiter-env .env/env.aiter.latest
 
 just up \
-  --rocm-env .env/env.rocm714 \
+  --rocm-env .env/env.rocm715 \
   --vllm-env .env/env.vllm.nightly \
   --patch gfx12x-patched \
   --aiter-env .env/env.aiter.latest
@@ -166,13 +166,24 @@ https://rocm.nightlies.amd.com/whl-multi-arch/
 ```
 
 Run `.env/latest-rocm-sdk-core.sh` to print the latest version from the
-`rocm-sdk-core` index as a reference when updating `.env/env.rocm714`.
+`rocm-sdk-core` index as a reference when updating `.env/env.rocm715`.
 
-For gfx1201, keep `ROCM_SDK_CORE_VERSION`, `ROCM_SDK_LIBRARIES_VERSION`, and `ROCM_SDK_DEVEL_VERSION` on the same nightly version in `.env/env.rocm714`. Compose service `env_file` entries do not feed `build.args`, so these build values are supplied through Compose variable interpolation and selected with `podman compose --env-file ...`.
+For gfx1201, keep `ROCM_SDK_CORE_VERSION`, `ROCM_SDK_LIBRARIES_VERSION`, and `ROCM_SDK_DEVEL_VERSION` on the same nightly version in `.env/env.rocm715`. Compose service `env_file` entries do not feed `build.args`, so these build values are supplied through Compose variable interpolation and selected with `podman compose --env-file ...`.
 
-The `.env/normalize-hipblaslt-layout.sh` build helper normalizes both ROCm SDK hipBLASLt layouts: the flat 7.13 layout and the newer multi-arch layout that stores gfx1201 artifacts under `library/gfx1201/`.
+ROCm 7.14 is the stable AMD multi-arch release. Its package index is:
 
-The old stable ROCm wheel index and 7.13 package names live in `.env/env.rocm713`.
+```text
+https://repo.amd.com/rocm/whl-multi-arch/
+```
+
+The gfx1201 device package is listed at
+`https://repo.amd.com/rocm/whl-multi-arch/rocm-sdk-device-gfx1201/`.
+The pinned stable versions live in `.env/env.rocm714`.
+
+The `.env/normalize-hipblaslt-layout.sh` build helper normalizes both ROCm SDK hipBLASLt layouts: the flat 7.13 layout and the newer multi-arch layout used by ROCm 7.14 stable and 7.15 nightlies, which stores gfx1201 artifacts under `library/gfx1201/`.
+
+The legacy stable ROCm wheel index and 7.13 package names remain unchanged in
+`.env/env.rocm713`.
 
 ## Custom gfx12x/R9700 patches
 

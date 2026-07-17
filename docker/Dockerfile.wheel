@@ -1,4 +1,4 @@
-### A Dockerfile for a usable vllm environment with AMD ROCm nightlies for gfx1201 and vllm ROCm wheels.
+### A Dockerfile for a usable vLLM environment with AMD ROCm SDK and vLLM ROCm wheels for gfx1201.
 FROM ubuntu:24.04
 
 ARG GFX_TARGET

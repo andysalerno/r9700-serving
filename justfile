@@ -5,6 +5,8 @@ _default:
 
 # Image tags are based on these argument values:
 #   .env/env.rocm713       -> rocm713
+#   .env/env.rocm714       -> rocm714
+#   .env/env.rocm715       -> rocm715
 #   .env/env.vllm.latest   -> vllm-latest
 #   gfx12x-patched         -> gfx12x-patched
 #   .env/env.aiter.bundled -> aiter-bundled
@@ -105,7 +107,7 @@ build-images rocm_env=".env/env.rocm713" vllm_env=".env/env.vllm.latest" patch="
     fi
 
 # Example with compose up args:
-#   just up .env/env.rocm713 .env/env.vllm.latest gfx12x-patched .env/env.aiter.bundled -- -d
+#   just up .env/env.rocm715 .env/env.vllm.latest gfx12x-patched .env/env.aiter.bundled -- -d
 
 # Launch the selected vLLM service.
 [arg("aiter_env", long="aiter-env")]
