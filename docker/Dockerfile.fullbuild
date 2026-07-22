@@ -195,8 +195,11 @@ FROM framework-base AS runtime
 COPY --from=flash-attention-builder /wheels/ /install/
 COPY --from=aiter-builder /wheels/ /install/
 COPY --from=vllm-builder /wheels/ /install/
+COPY --from=vllm-builder /src/vllm/requirements/ /install/requirements/
 
-RUN python -m pip install --no-deps /install/*.whl \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install -r /install/requirements/rocm.txt \
+    && python -m pip install /install/*.whl \
     && rm -rf /install
 
 ENV FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
