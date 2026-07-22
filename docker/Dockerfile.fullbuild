@@ -95,6 +95,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     && FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE \
        MAX_JOBS="${MAX_JOBS}" \
        python -m pip wheel \
+         --no-deps \
          --no-build-isolation \
          --wheel-dir=/wheels \
          .
