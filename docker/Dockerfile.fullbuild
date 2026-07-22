@@ -1,6 +1,11 @@
 ARG ROCM_IMAGE=docker.io/rocm/dev-ubuntu-24.04:7.14.0-full
 ARG GPU_ARCH=gfx1201
 ARG MAX_JOBS=16
+ARG AITER_MODE
+
+# Select AITER without changing the rest of the source build:
+#   podman build --build-arg AITER_MODE=prebuilt -f docker/Dockerfile.fullbuild .
+#   podman build --build-arg AITER_MODE=build -f docker/Dockerfile.fullbuild .
 
 # -----------------------------------------------------------------------------
 # Common ROCm + Python + PyTorch stack
@@ -105,6 +110,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 FROM framework-base AS aiter-builder
 
+ARG AITER_MODE
 ARG AITER_REPO=https://github.com/ROCm/aiter.git
 ARG AITER_REF=620287969c9ce18cd2033ebbdfd13107800f7f3f
 ARG GPU_ARCH
@@ -112,27 +118,43 @@ ARG MAX_JOBS
 
 WORKDIR /src
 
-RUN git clone --recursive "${AITER_REPO}" aiter \
-    && cd aiter \
-    && git checkout "${AITER_REF}" \
-    && git submodule update --init --recursive
+COPY .env/env.aiter.latest /tmp/aiter-prebuilt.env
 
-# COPY patches/aiter/ /patches/aiter/
-
-# RUN cd /src/aiter \
-#     && for patch in /patches/aiter/*.patch; do \
-#          [ -e "$patch" ] || continue; \
-#          git apply "$patch"; \
-#        done
-
+# The upstream wheels target gfx942/gfx950; vanilla vLLM leaves AITER disabled
+# on gfx1201.
 RUN --mount=type=cache,target=/root/.cache/pip \
-    cd /src/aiter \
-    && python -m pip install -r requirements.txt \
-    && AITER_USE_SYSTEM_TRITON=1 \
-       PREBUILD_KERNELS=1 \
-       GPU_ARCHS="${GPU_ARCH}" \
-       MAX_JOBS="${MAX_JOBS}" \
-       python setup.py bdist_wheel --dist-dir=/wheels
+    set -eux; \
+    case "${AITER_MODE:?set AITER_MODE to build or prebuilt}" in \
+        build) \
+            git clone --recursive "${AITER_REPO}" aiter; \
+            cd aiter; \
+            git checkout "${AITER_REF}"; \
+            git submodule update --init --recursive; \
+            python -m pip install -r requirements.txt; \
+            AITER_USE_SYSTEM_TRITON=1 \
+            PREBUILD_KERNELS=1 \
+            GPU_ARCHS="${GPU_ARCH}" \
+            MAX_JOBS="${MAX_JOBS}" \
+            python setup.py bdist_wheel --dist-dir=/wheels; \
+            ;; \
+        prebuilt) \
+            set -a; \
+            . /tmp/aiter-prebuilt.env; \
+            set +a; \
+            : "${AITER_LATEST_WHEEL_URL:?AITER_LATEST_WHEEL_URL must be set}"; \
+            : "${AITER_LATEST_FLYDSL_WHEEL_URL:?AITER_LATEST_FLYDSL_WHEEL_URL must be set}"; \
+            mkdir -p /wheels; \
+            AITER_WHEEL_NAME="$(basename "${AITER_LATEST_WHEEL_URL}" | sed 's/%2[Bb]/+/g')"; \
+            FLYDSL_WHEEL_NAME="$(basename "${AITER_LATEST_FLYDSL_WHEEL_URL}" | sed 's/%2[Bb]/+/g')"; \
+            curl -fsSL "${AITER_LATEST_WHEEL_URL}" -o "/wheels/${AITER_WHEEL_NAME}"; \
+            curl -fsSL "${AITER_LATEST_FLYDSL_WHEEL_URL}" -o "/wheels/${FLYDSL_WHEEL_NAME}"; \
+            ;; \
+        *) \
+            echo "AITER_MODE must be build or prebuilt, got: ${AITER_MODE}" >&2; \
+            exit 1; \
+            ;; \
+    esac; \
+    rm -f /tmp/aiter-prebuilt.env
 
 # -----------------------------------------------------------------------------
 # vLLM
@@ -140,6 +162,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 FROM framework-base AS vllm-builder
 
+ARG AITER_MODE
 ARG VLLM_REPO=https://github.com/vllm-project/vllm.git
 ARG VLLM_REF=752a3a504485790a2e8491cacbb35c137339ad34
 ARG GPU_ARCH
@@ -162,8 +185,17 @@ RUN git clone "${VLLM_REPO}" vllm \
 COPY --from=flash-attention-builder /wheels/ /dependency-wheels/
 COPY --from=aiter-builder /wheels/ /dependency-wheels/
 
+# Preserve the explicitly paired development FlyDSL wheel despite AITER's
+# stricter published dependency metadata.
 RUN --mount=type=cache,target=/root/.cache/pip \
-    python -m pip install /dependency-wheels/*.whl
+    if [ "${AITER_MODE}" = prebuilt ]; then \
+        python -m pip install /dependency-wheels/flash_attn-*.whl; \
+        python -m pip install --no-deps \
+            /dependency-wheels/amd_aiter-*.whl \
+            /dependency-wheels/flydsl-*.whl; \
+    else \
+        python -m pip install /dependency-wheels/*.whl; \
+    fi
 
 # Tell vLLM to retain the existing AMD PyTorch installation instead of trying
 # to resolve or build another PyTorch stack.
@@ -192,14 +224,26 @@ RUN --mount=type=cache,target=/root/.cache/ccache \
 
 FROM framework-base AS runtime
 
+ARG AITER_MODE
+
 COPY --from=flash-attention-builder /wheels/ /install/
 COPY --from=aiter-builder /wheels/ /install/
 COPY --from=vllm-builder /wheels/ /install/
 COPY --from=vllm-builder /src/vllm/requirements/ /install/requirements/
 
+# Install the prebuilt AITER/FlyDSL pair without dependency re-resolution.
 RUN --mount=type=cache,target=/root/.cache/pip \
     python -m pip install -r /install/requirements/rocm.txt \
-    && python -m pip install /install/*.whl \
+    && if [ "${AITER_MODE}" = prebuilt ]; then \
+           python -m pip install \
+               /install/flash_attn-*.whl \
+               /install/vllm-*.whl; \
+           python -m pip install --no-deps \
+               /install/amd_aiter-*.whl \
+               /install/flydsl-*.whl; \
+       else \
+           python -m pip install /install/*.whl; \
+       fi \
     && rm -rf /install
 
 ENV FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
