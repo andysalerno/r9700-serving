@@ -65,7 +65,6 @@ date: 2026-05-22 19:22:05 | latency mode: api
       # https://rocm.docs.amd.com/en/latest/how-to/rocm-for-ai/inference-optimization/vllm-optimization.html
       HIP_VISIBLE_DEVICES: "0,1"
       ROCR_VISIBLE_DEVICES: "0,1"
-      CUDA_VISIBLE_DEVICES: "0,1"
       HIP_PLATFORM: "amd"
       VLLM_TARGET_DEVICE: "rocm"
       VLLM_ROCM_GCN_ARCH: "gfx1201"

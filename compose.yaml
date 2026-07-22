@@ -219,7 +219,6 @@ services:
       # GPU/offload
       - HIP_VISIBLE_DEVICES=0,1
       - ROCR_VISIBLE_DEVICES=0,1
-      - CUDA_VISIBLE_DEVICES=0,1
       # - LLAMA_ARG_TENSOR_SPLIT=1,1
 
       - LLAMA_ARG_TEMPERATURE=1.0
@@ -259,7 +258,6 @@ services:
       # GPU/offload
       - HIP_VISIBLE_DEVICES=0,1
       - ROCR_VISIBLE_DEVICES=0,1
-      - CUDA_VISIBLE_DEVICES=0,1
       # - LLAMA_ARG_TENSOR_SPLIT=1,1
 
       - LLAMA_ARG_TEMPERATURE=1.0

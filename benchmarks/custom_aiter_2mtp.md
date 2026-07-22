@@ -55,7 +55,6 @@ date: 2026-05-23 18:14:55 | latency mode: api
     environment:
       HIP_VISIBLE_DEVICES: "0,1"
       ROCR_VISIBLE_DEVICES: "0,1"
-      CUDA_VISIBLE_DEVICES: "0,1"
       HIP_PLATFORM: "amd"
       VLLM_TARGET_DEVICE: "rocm"
       VLLM_ROCM_GCN_ARCH: "gfx1201"
