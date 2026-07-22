@@ -317,16 +317,19 @@ check-versions rocm_env=".env/env.rocm713" vllm_env=".env/env.vllm.latest" patch
     podman run --rm --entrypoint python "$target_image" -c 'import importlib.metadata as md, os, torch; versions = {d.metadata["Name"].lower(): d.version for d in md.distributions()}; [print(f"{name}:", versions.get(name, "not installed")) for name in ("vllm", "amd-aiter", "flydsl", "torch", "triton", "flash-attn", "rocm-sdk-core", "rocm-sdk-devel", "rocm-sdk-libraries", "rocm-sdk-device-gfx1201")]; print("torch.version.hip:", torch.version.hip); [print(f"{key}:", os.environ.get(key)) for key in ("ROCM_PATH", "HIP_PATH", "HIPBLASLT_TENSILE_LIBPATH", "ROCBLAS_TENSILE_LIBPATH")]'
 
 fullbuild:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
     set -a
     source .env/env.fullbuild
     set +a
 
     podman build \
-    --build-arg GPU_ARCH \
-    --build-arg MAX_JOBS \
-    --build-arg VLLM_REF \
-    --build-arg AITER_REF \
-    --build-arg FLASH_ATTN_REF \
-    --target runtime \
-    --tag localhost/vllm-fullbuild:review \
-    --file docker/Dockerfile.fullbuild .
+        --build-arg GPU_ARCH \
+        --build-arg MAX_JOBS \
+        --build-arg VLLM_REF \
+        --build-arg AITER_REF \
+        --build-arg FLASH_ATTN_REF \
+        --target runtime \
+        --tag localhost/vllm-fullbuild:review \
+        --file docker/Dockerfile.fullbuild .
