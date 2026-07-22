@@ -328,6 +328,7 @@ fullbuild:
         --build-arg GPU_ARCH \
         --build-arg MAX_JOBS \
         --build-arg VLLM_REF \
+        --build-arg VLLM_VERSION \
         --build-arg AITER_REF \
         --build-arg FLASH_ATTN_REF \
         --target runtime \
