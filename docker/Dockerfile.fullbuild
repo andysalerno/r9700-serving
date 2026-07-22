@@ -141,6 +141,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 FROM framework-base AS vllm-builder
 
+ARG ROCM_IMAGE
 ARG VLLM_REPO=https://github.com/vllm-project/vllm.git
 ARG VLLM_REF=
 ARG GPU_ARCH
@@ -179,12 +180,21 @@ RUN cd /src/vllm \
 RUN --mount=type=cache,target=/root/.cache/ccache \
     --mount=type=cache,target=/root/.cache/pip \
     cd /src/vllm \
+    && VLLM_TAG="$(git describe --tags --exact-match HEAD)" \
+    && VLLM_VERSION="${VLLM_TAG#v}" \
+    && ROCM_IMAGE_TAG="${ROCM_IMAGE##*:}" \
+    && ROCM_VERSION="${ROCM_IMAGE_TAG%%-*}" \
+    && ROCM_MAJOR="${ROCM_VERSION%%.*}" \
+    && ROCM_MINOR_PATCH="${ROCM_VERSION#*.}" \
+    && ROCM_MINOR="${ROCM_MINOR_PATCH%%.*}" \
+    && PACKAGE_VERSION="${VLLM_VERSION}+rocm${ROCM_MAJOR}${ROCM_MINOR}.${GPU_ARCH}" \
+    && python -c 'from packaging.version import Version; import sys; print(f"Building vLLM {Version(sys.argv[1])}")' "${PACKAGE_VERSION}" \
     && VLLM_TARGET_DEVICE=rocm \
        PYTORCH_ROCM_ARCH="${GPU_ARCH}" \
        CMAKE_HIP_ARCHITECTURES="${GPU_ARCH}" \
        GPU_TARGETS="${GPU_ARCH}" \
        MAX_JOBS="${MAX_JOBS}" \
-       SETUPTOOLS_SCM_PRETEND_VERSION="0.25.1+rocm714.gfx1201" \
+       VLLM_VERSION_OVERRIDE="${PACKAGE_VERSION}" \
        python setup.py bdist_wheel --dist-dir=/wheels
 
 # -----------------------------------------------------------------------------
