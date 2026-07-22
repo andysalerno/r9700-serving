@@ -73,7 +73,7 @@ PY
 FROM framework-base AS flash-attention-builder
 
 ARG FLASH_ATTN_REPO=https://github.com/ROCm/flash-attention.git
-ARG FLASH_ATTN_REF=main
+ARG FLASH_ATTN_REF=b3ae4966b2567811880db10d9e040a775b99c7d7
 ARG MAX_JOBS
 
 WORKDIR /src
@@ -106,7 +106,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 FROM framework-base AS aiter-builder
 
 ARG AITER_REPO=https://github.com/ROCm/aiter.git
-ARG AITER_REF=v0.1.16.post2
+ARG AITER_REF=620287969c9ce18cd2033ebbdfd13107800f7f3f
 ARG GPU_ARCH
 ARG MAX_JOBS
 
@@ -141,7 +141,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 FROM framework-base AS vllm-builder
 
 ARG VLLM_REPO=https://github.com/vllm-project/vllm.git
-ARG VLLM_REF=v0.25.1
+ARG VLLM_REF=752a3a504485790a2e8491cacbb35c137339ad34
 ARG GPU_ARCH
 ARG MAX_JOBS
 
