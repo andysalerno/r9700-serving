@@ -79,9 +79,21 @@ ARG MAX_JOBS
 
 WORKDIR /src
 
-RUN git clone --recursive "${FLASH_ATTN_REPO}" flash-attention \
+RUN mkdir flash-attention \
     && cd flash-attention \
-    && git checkout "${FLASH_ATTN_REF}"
+    && git init --quiet \
+    && git remote add origin "${FLASH_ATTN_REPO}" \
+    && if [ "${FLASH_ATTN_REF#refs/tags/}" != "${FLASH_ATTN_REF}" ]; then \
+         git fetch --depth=1 --no-tags origin \
+           "${FLASH_ATTN_REF}:${FLASH_ATTN_REF}"; \
+       elif git ls-remote --exit-code --tags origin "refs/tags/${FLASH_ATTN_REF}" >/dev/null 2>&1; then \
+         git fetch --depth=1 --no-tags origin \
+           "refs/tags/${FLASH_ATTN_REF}:refs/tags/${FLASH_ATTN_REF}"; \
+       else \
+         git fetch --depth=1 --no-tags origin "${FLASH_ATTN_REF}"; \
+       fi \
+    && git checkout --detach FETCH_HEAD \
+    && git submodule update --init --recursive --depth=1
 
 # COPY patches/flash-attention/ /patches/flash-attention/
 
@@ -114,10 +126,21 @@ ARG MAX_JOBS
 
 WORKDIR /src
 
-RUN git clone --recursive "${AITER_REPO}" aiter \
+RUN mkdir aiter \
     && cd aiter \
-    && git checkout "${AITER_REF}" \
-    && git submodule update --init --recursive
+    && git init --quiet \
+    && git remote add origin "${AITER_REPO}" \
+    && if [ "${AITER_REF#refs/tags/}" != "${AITER_REF}" ]; then \
+         git fetch --depth=1 --no-tags origin \
+           "${AITER_REF}:${AITER_REF}"; \
+       elif git ls-remote --exit-code --tags origin "refs/tags/${AITER_REF}" >/dev/null 2>&1; then \
+         git fetch --depth=1 --no-tags origin \
+           "refs/tags/${AITER_REF}:refs/tags/${AITER_REF}"; \
+       else \
+         git fetch --depth=1 --no-tags origin "${AITER_REF}"; \
+       fi \
+    && git checkout --detach FETCH_HEAD \
+    && git submodule update --init --recursive --depth=1
 
 # COPY patches/aiter/ /patches/aiter/
 
@@ -149,9 +172,20 @@ ARG MAX_JOBS
 
 WORKDIR /src
 
-RUN git clone "${VLLM_REPO}" vllm \
+RUN mkdir vllm \
     && cd vllm \
-    && git checkout "${VLLM_REF}"
+    && git init --quiet \
+    && git remote add origin "${VLLM_REPO}" \
+    && if [ "${VLLM_REF#refs/tags/}" != "${VLLM_REF}" ]; then \
+         git fetch --depth=1 --no-tags origin \
+           "${VLLM_REF}:${VLLM_REF}"; \
+       elif git ls-remote --exit-code --tags origin "refs/tags/${VLLM_REF}" >/dev/null 2>&1; then \
+         git fetch --depth=1 --no-tags origin \
+           "refs/tags/${VLLM_REF}:refs/tags/${VLLM_REF}"; \
+       else \
+         git fetch --depth=1 --no-tags origin "${VLLM_REF}"; \
+       fi \
+    && git checkout --detach FETCH_HEAD
 
 # COPY patches/vllm/ /patches/vllm/
 
