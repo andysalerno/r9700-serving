@@ -199,7 +199,8 @@ COPY --from=vllm-builder /wheels/ /install/
 COPY --from=vllm-builder /src/vllm/requirements/ /install/requirements/
 
 RUN --mount=type=cache,target=/root/.cache/pip \
-    python -m pip install -r /install/requirements/rocm.txt \
+    python -m pip install --no-deps /opt/rocm/share/amd_smi \
+    && python -m pip install -r /install/requirements/rocm.txt \
     && python -m pip install /install/*.whl \
     && rm -rf /install
 
