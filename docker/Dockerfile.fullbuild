@@ -129,7 +129,6 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     cd /src/aiter \
     && python -m pip install -r requirements.txt \
     && AITER_USE_SYSTEM_TRITON=1 \
-       PREBUILD_KERNELS=1 \
        GPU_ARCHS="${GPU_ARCH}" \
        MAX_JOBS="${MAX_JOBS}" \
        python setup.py bdist_wheel --dist-dir=/wheels
