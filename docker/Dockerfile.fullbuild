@@ -1,4 +1,4 @@
-ARG ROCM_IMAGE=rocm/dev-ubuntu-24.04:7.14.0-full
+ARG ROCM_IMAGE=docker.io/rocm/dev-ubuntu-24.04:7.14.0-full
 ARG GPU_ARCH=gfx1201
 ARG MAX_JOBS=16
 
