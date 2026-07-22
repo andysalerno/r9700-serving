@@ -1,0 +1,215 @@
+ARG ROCM_IMAGE=rocm/dev-ubuntu-24.04:7.14.0-full
+ARG GPU_ARCH=gfx1201
+ARG MAX_JOBS=16
+
+# -----------------------------------------------------------------------------
+# Common ROCm + Python + PyTorch stack
+# -----------------------------------------------------------------------------
+
+FROM ${ROCM_IMAGE} AS framework-base
+
+ARG GPU_ARCH
+ENV GPU_ARCH=${GPU_ARCH}
+ENV ROCM_PATH=/opt/rocm
+ENV PATH=/opt/venv/bin:/opt/rocm/bin:/opt/rocm/llvm/bin:${PATH}
+ENV LD_LIBRARY_PATH=/opt/rocm/lib:/opt/rocm/lib64:${LD_LIBRARY_PATH}
+
+ENV PYTORCH_ROCM_ARCH=${GPU_ARCH}
+ENV CMAKE_HIP_ARCHITECTURES=${GPU_ARCH}
+ENV AMDGPU_TARGETS=${GPU_ARCH}
+ENV GPU_TARGETS=${GPU_ARCH}
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        ccache \
+        cmake \
+        curl \
+        git \
+        libfmt-dev \
+        libmsgpack-dev \
+        libnuma-dev \
+        libsqlite3-dev \
+        mold \
+        ninja-build \
+        pkg-config \
+        python3 \
+        python3-dev \
+        python3-venv \
+        rustc \
+        cargo \
+        unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m venv /opt/venv \
+    && python -m pip install --upgrade \
+        pip \
+        uv \
+        wheel \
+        ninja \
+        packaging \
+        "setuptools>=77,<80" \
+        setuptools-scm \
+        setuptools-rust
+
+# AMD's ROCm 7.14 PyTorch stack, compiled specifically for gfx1201.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install \
+        --index-url https://repo.amd.com/rocm/whl-multi-arch/ \
+        "torch[device-gfx1201]==2.11.0+rocm7.14.0" \
+        "torchvision[device-gfx1201]==0.26.0+rocm7.14.0" \
+        "torchaudio==2.11.0+rocm7.14.0"
+
+RUN python - <<'PY'
+import torch
+print("torch:", torch.__version__)
+print("ROCm:", torch.version.hip)
+PY
+
+# -----------------------------------------------------------------------------
+# Flash Attention for RDNA
+# -----------------------------------------------------------------------------
+
+FROM framework-base AS flash-attention-builder
+
+ARG FLASH_ATTN_REPO=https://github.com/ROCm/flash-attention.git
+ARG FLASH_ATTN_REF=main
+ARG MAX_JOBS
+
+WORKDIR /src
+
+RUN git clone --recursive "${FLASH_ATTN_REPO}" flash-attention \
+    && cd flash-attention \
+    && git checkout "${FLASH_ATTN_REF}"
+
+# COPY patches/flash-attention/ /patches/flash-attention/
+
+# RUN cd /src/flash-attention \
+#     && for patch in /patches/flash-attention/*.patch; do \
+#          [ -e "$patch" ] || continue; \
+#          git apply "$patch"; \
+#        done
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    cd /src/flash-attention \
+    && FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE \
+       MAX_JOBS="${MAX_JOBS}" \
+       python -m pip wheel \
+         --no-build-isolation \
+         --wheel-dir=/wheels \
+         .
+
+# -----------------------------------------------------------------------------
+# AITER for gfx1201
+# -----------------------------------------------------------------------------
+
+FROM framework-base AS aiter-builder
+
+ARG AITER_REPO=https://github.com/ROCm/aiter.git
+ARG AITER_REF=v0.1.16.post2
+ARG GPU_ARCH
+ARG MAX_JOBS
+
+WORKDIR /src
+
+RUN git clone --recursive "${AITER_REPO}" aiter \
+    && cd aiter \
+    && git checkout "${AITER_REF}" \
+    && git submodule update --init --recursive
+
+# COPY patches/aiter/ /patches/aiter/
+
+# RUN cd /src/aiter \
+#     && for patch in /patches/aiter/*.patch; do \
+#          [ -e "$patch" ] || continue; \
+#          git apply "$patch"; \
+#        done
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    cd /src/aiter \
+    && python -m pip install -r requirements.txt \
+    && AITER_USE_SYSTEM_TRITON=1 \
+       PREBUILD_KERNELS=1 \
+       GPU_ARCHS="${GPU_ARCH}" \
+       MAX_JOBS="${MAX_JOBS}" \
+       python setup.py bdist_wheel --dist-dir=/wheels
+
+# -----------------------------------------------------------------------------
+# vLLM
+# -----------------------------------------------------------------------------
+
+FROM framework-base AS vllm-builder
+
+ARG VLLM_REPO=https://github.com/vllm-project/vllm.git
+ARG VLLM_REF=v0.25.1
+ARG GPU_ARCH
+ARG MAX_JOBS
+
+WORKDIR /src
+
+RUN git clone "${VLLM_REPO}" vllm \
+    && cd vllm \
+    && git checkout "${VLLM_REF}"
+
+# COPY patches/vllm/ /patches/vllm/
+
+# RUN cd /src/vllm \
+#     && for patch in /patches/vllm/*.patch; do \
+#          [ -e "$patch" ] || continue; \
+#          git apply "$patch"; \
+#        done
+
+COPY --from=flash-attention-builder /wheels/ /dependency-wheels/
+COPY --from=aiter-builder /wheels/ /dependency-wheels/
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install /dependency-wheels/*.whl
+
+# Tell vLLM to retain the existing AMD PyTorch installation instead of trying
+# to resolve or build another PyTorch stack.
+RUN cd /src/vllm \
+    && python use_existing_torch.py --prefix \
+    && python -m pip install -r requirements/rocm.txt
+
+RUN cd /src/vllm \
+    && ./tools/install_protoc.sh \
+    && bash build_rust.sh
+
+RUN --mount=type=cache,target=/root/.cache/ccache \
+    --mount=type=cache,target=/root/.cache/pip \
+    cd /src/vllm \
+    && VLLM_TARGET_DEVICE=rocm \
+       PYTORCH_ROCM_ARCH="${GPU_ARCH}" \
+       CMAKE_HIP_ARCHITECTURES="${GPU_ARCH}" \
+       GPU_TARGETS="${GPU_ARCH}" \
+       MAX_JOBS="${MAX_JOBS}" \
+       SETUPTOOLS_SCM_PRETEND_VERSION="0.25.1+rocm714.gfx1201" \
+       python setup.py bdist_wheel --dist-dir=/wheels
+
+# -----------------------------------------------------------------------------
+# Final runtime image
+# -----------------------------------------------------------------------------
+
+FROM framework-base AS runtime
+
+COPY --from=flash-attention-builder /wheels/ /install/
+COPY --from=aiter-builder /wheels/ /install/
+COPY --from=vllm-builder /wheels/ /install/
+
+RUN python -m pip install --no-deps /install/*.whl \
+    && rm -rf /install
+
+ENV FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
+
+ENV HSA_ENABLE_IPC_MODE_LEGACY=1
+ENV HSA_NO_SCRATCH_RECLAIM=1
+ENV HIP_FORCE_DEV_KERNARG=1
+ENV SAFETENSORS_FAST_GPU=1
+ENV PYTORCH_NVML_BASED_CUDA_CHECK=1
+ENV TOKENIZERS_PARALLELISM=false
+
+WORKDIR /workspace
+
+EXPOSE 8000
+
+ENTRYPOINT ["vllm", "serve"]
