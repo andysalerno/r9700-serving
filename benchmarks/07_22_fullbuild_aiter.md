@@ -21,3 +21,8 @@ llama-benchy (0.3.8.dev2+gff162bcfc)
 date: 2026-07-22 20:09:02 | latency mode: api
 
 commit: current
+
+andybench results: perfect!
+samples_passed: 39
+samples_total: 39
+duration_seconds: 1553.96
