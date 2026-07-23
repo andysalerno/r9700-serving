@@ -30,7 +30,7 @@ services:
     <<: *amd_devices
     # image: vllm/vllm-openai-rocm:v0.25.1
     # image: docker.io/rocm/vllm:rocm7.14.0_rdna_ubuntu24.04_py3.14_pytorch_2.11.0_vllm_0.23.0
-    image: localhost/vllm-fullbuild:review
+    image: localhost/vllm-fullbuild:latest
     build:
       context: .
       dockerfile: Dockerfile.fullbuild
@@ -45,7 +45,7 @@ services:
         VLLM_VERSION: ${VLLM_VERSION}
         AITER_REF: ${AITER_REF}
         FLASH_ATTN_REF: ${FLASH_ATTN_REF}
-    container_name: vllm-mainline
+    container_name: vllm
     ports:
       - "8000:8000"
     networks:
@@ -54,9 +54,8 @@ services:
           - llm-backend
     volumes: *vllm_full_cache_volumes
     env_file:
-      - .env/2xr9700.vllm.common
-      - .env/aiter-unified-attention.env
-      - .env/otel.common
+      - env/2xr9700.vllm.common
+      - env/aiter-unified-attention.env
     environment:
       - GPU_MAX_HW_QUEUES=1
       - NCCL_P2P_DISABLE=1
