@@ -81,100 +81,12 @@ services:
       --speculative-config '{"method": "mtp", "num_speculative_tokens": 3, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
 
   ##########
-  # llamacpp backends
-  ##########
-
-  llamacpp-rocm:
-    image: ghcr.io/ggml-org/llama.cpp:server-rocm
-    container_name: llamacpp-qwen36-rocm
-    <<: *amd_devices
-    profiles: ["llamacpp-rocm"]
-    ports:
-      - "8000:8000"
-    networks:
-      default:
-        aliases:
-          - llm-backend
-          - llamacpp
-    volumes: *llamacpp_cache_volumes
-    environment:
-      - LLAMA_ARG_HOST=0.0.0.0
-      - LLAMA_ARG_PORT=8000
-      - LLAMA_API_KEY=sk-empty
-      - LLAMA_ARG_ALIAS=qwen3.6-27b
-      - LLAMA_ARG_UI=false
-
-      - LLAMA_ARG_HF_REPO=unsloth/Qwen3.6-27B-MTP-GGUF:Q8_0
-
-      - LLAMA_ARG_CTX_SIZE=128000
-
-      # GPU/offload
-      - HIP_VISIBLE_DEVICES=0,1
-      - ROCR_VISIBLE_DEVICES=0,1
-      # - LLAMA_ARG_TENSOR_SPLIT=1,1
-
-      - LLAMA_ARG_TEMPERATURE=1.0
-      - LLAMA_ARG_TOP_P=0.95
-      - LLAMA_ARG_TOP_K=20
-      - LLAMA_ARG_MIN_P=0.0
-      - LLAMA_ARG_PRESENCE_PENALTY=0.0
-      - LLAMA_ARG_REPEAT_PENALTY=1.0
-    command: >
-      --spec-type draft-mtp --spec-draft-n-max 3
-
-  llamacpp-vulkan:
-    <<: *amd_devices
-    image: ghcr.io/ggml-org/llama.cpp:server-vulkan
-    container_name: llamacpp-qwen36-vulkan
-    profiles: ["llamacpp-vulkan"]
-    ports:
-      - "8000:8000"
-    networks:
-      default:
-        aliases:
-          - llm-backend
-          - llamacpp
-    volumes: *llamacpp_cache_volumes
-    environment:
-      - LLAMA_ARG_HOST=0.0.0.0
-      - LLAMA_ARG_PORT=8000
-      - LLAMA_API_KEY=sk-empty
-      - LLAMA_ARG_ALIAS=qwen3.6-27b-gguf
-      - LLAMA_ARG_UI=false
-
-      # - LLAMA_ARG_HF_REPO=unsloth/Qwen3.6-27B-MTP-GGUF:Q8_0
-      - LLAMA_ARG_HF_REPO=unsloth/Qwen3.6-27B-GGUF:Q8_0
-
-      - LLAMA_ARG_CTX_SIZE=128000
-
-      # GPU/offload
-      - HIP_VISIBLE_DEVICES=0,1
-      - ROCR_VISIBLE_DEVICES=0,1
-      # - LLAMA_ARG_TENSOR_SPLIT=1,1
-
-      - LLAMA_ARG_TEMPERATURE=1.0
-      - LLAMA_ARG_TOP_P=0.95
-      - LLAMA_ARG_TOP_K=20
-      - LLAMA_ARG_MIN_P=0.0
-      - LLAMA_ARG_PRESENCE_PENALTY=0.0
-      - LLAMA_ARG_REPEAT_PENALTY=1.0
-    # command: >
-    #   --spec-type draft-mtp --spec-draft-n-max 2
-
-  ##########
   # tools and dashboards
   ##########
 
   chatui:
     image: ghcr.io/huggingface/chat-ui-db:latest
     container_name: chatui
-    profiles:
-      [
-        "vllm-rocm-wheel",
-        "vllm-rocm-wheel-nightly",
-        "vllm-rocm-wheel-gfx12x-patched",
-        "vllm-mainline",
-      ]
     ports:
       - "8001:3000"
     environment:
@@ -185,44 +97,8 @@ services:
     volumes:
       - chat-ui-data:/data
 
-  chatui-hermes:
-    image: ghcr.io/huggingface/chat-ui-db:latest
-    container_name: chatui-hermes
-    profiles: ["hermes-agent"]
-    ports:
-      - "8004:3000"
-    environment:
-      - OPENAI_BASE_URL=http://hermes-agent:8642/v1
-      - OPENAI_API_KEY=sk-empty
-      - COOKIE_SECURE=false
-      - PUBLIC_ORIGIN=http://hirose.local:8004
-    volumes:
-      - chat-ui-hermes-data:/data
-    depends_on:
-      - hermes-agent
-
-  hermes-agent:
-    image: nousresearch/hermes-agent
-    profiles: ["hermes-agent"]
-    environment:
-      - API_SERVER_ENABLED=true
-      - API_SERVER_PORT=8642
-      - API_SERVER_HOST=0.0.0.0
-      - API_SERVER_KEY=sk-empty
-      - GATEWAY_ALLOW_ALL_USERS=true
-      - HERMES_YOLO_MODE=1
-      # - HERMES_GATEWAY_NO_SUPERVISE=1
-    volumes:
-      - ${HOME}/.hermes:/opt/data:Z
-    ports:
-      - "8005:8642"
-    # depends_on:
-    #  - vllm-rocm-wheel-gfx12x-patched
-    command: gateway
-
 volumes:
   chat-ui-data:
-  chat-ui-hermes-data:
 
 # Keeping this around since it is useful:
 # google/gemma-4-31B-it-qat-w4a16-ct

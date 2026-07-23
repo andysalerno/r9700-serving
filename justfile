@@ -26,3 +26,13 @@ clear-vllm-caches:
 
 build:
     podman compose --env-file env/env.fullbuild build
+
+
+up:
+    podman compose up -d
+
+logs:
+    podman compose logs -f
+
+down:
+    podman compose down
