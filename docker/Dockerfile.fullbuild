@@ -1,4 +1,4 @@
-ARG ROCM_IMAGE=docker.io/rocm/dev-ubuntu-24.04:7.14.0-full
+ARG ROCM_IMAGE
 ARG GPU_ARCH=gfx1201
 ARG MAX_JOBS=16
 
@@ -9,6 +9,9 @@ ARG MAX_JOBS=16
 FROM ${ROCM_IMAGE} AS framework-base
 
 ARG GPU_ARCH
+ARG TORCH_VERSION
+ARG TORCHVISION_VERSION
+ARG TORCHAUDIO_VERSION
 ENV GPU_ARCH=${GPU_ARCH}
 ENV ROCM_PATH=/opt/rocm
 ENV PATH=/opt/venv/bin:/opt/rocm/bin:/opt/rocm/llvm/bin:${PATH}
@@ -53,13 +56,16 @@ RUN python3 -m venv /opt/venv \
         setuptools-scm \
         setuptools-rust
 
-# AMD's ROCm 7.14 PyTorch stack, compiled specifically for gfx1201.
+# AMD's ROCm PyTorch stack, compiled specifically for the target GPU.
 RUN --mount=type=cache,target=/root/.cache/pip \
-    python -m pip install \
+    : "${TORCH_VERSION:?set TORCH_VERSION to the pinned torch version}" \
+    && : "${TORCHVISION_VERSION:?set TORCHVISION_VERSION to the pinned torchvision version}" \
+    && : "${TORCHAUDIO_VERSION:?set TORCHAUDIO_VERSION to the pinned torchaudio version}" \
+    && python -m pip install \
         --index-url https://repo.amd.com/rocm/whl-multi-arch/ \
-        "torch[device-gfx1201]==2.11.0+rocm7.14.0" \
-        "torchvision[device-gfx1201]==0.26.0+rocm7.14.0" \
-        "torchaudio==2.11.0+rocm7.14.0"
+        "torch[device-${GPU_ARCH}]==${TORCH_VERSION}" \
+        "torchvision[device-${GPU_ARCH}]==${TORCHVISION_VERSION}" \
+        "torchaudio==${TORCHAUDIO_VERSION}"
 
 RUN python - <<'PY'
 import torch

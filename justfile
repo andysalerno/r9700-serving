@@ -325,8 +325,12 @@ fullbuild:
     set +a
 
     podman build \
+        --build-arg ROCM_IMAGE \
         --build-arg GPU_ARCH \
         --build-arg MAX_JOBS \
+        --build-arg TORCH_VERSION \
+        --build-arg TORCHVISION_VERSION \
+        --build-arg TORCHAUDIO_VERSION \
         --build-arg VLLM_REF \
         --build-arg VLLM_VERSION \
         --build-arg AITER_REF \
