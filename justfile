@@ -25,27 +25,4 @@ clear-vllm-caches:
     done
 
 build:
-    podman compose --env-file env.fullbuild build
-
-fullbuild:
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    set -a
-    source .env/env.fullbuild
-    set +a
-
-    podman build \
-        --build-arg ROCM_IMAGE \
-        --build-arg GPU_ARCH \
-        --build-arg MAX_JOBS \
-        --build-arg TORCH_VERSION \
-        --build-arg TORCHVISION_VERSION \
-        --build-arg TORCHAUDIO_VERSION \
-        --build-arg VLLM_REF \
-        --build-arg VLLM_VERSION \
-        --build-arg AITER_REF \
-        --build-arg FLASH_ATTN_REF \
-        --target runtime \
-        --tag localhost/vllm-fullbuild:review \
-        --file docker/Dockerfile.fullbuild .
+    podman compose --env-file env/env.fullbuild build

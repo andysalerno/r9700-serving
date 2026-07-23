@@ -59,11 +59,6 @@ services:
     environment:
       - GPU_MAX_HW_QUEUES=1
       - NCCL_P2P_DISABLE=1
-      # - VLLM_LOGGING_LEVEL=DEBUG
-      # - VLLM_USE_NCCL_SYMM_MEM=1
-      # - VLLM_DISABLE_PYNCCL=1
-      # --attention-backend ROCM_AITER_UNIFIED_ATTN
-      # --speculative-config '{"method": "mtp", "num_speculative_tokens": 3, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
     command: >
       Qwen/Qwen3.6-27B-FP8
       --tokenizer Qwen/Qwen3.6-27B
