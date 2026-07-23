@@ -24,6 +24,9 @@ clear-vllm-caches:
         rm -rf -- "$dir"
     done
 
+build:
+    podman compose --env-file env.fullbuild build
+
 fullbuild:
     #!/usr/bin/env bash
     set -euo pipefail

@@ -31,6 +31,20 @@ services:
     # image: vllm/vllm-openai-rocm:v0.25.1
     # image: docker.io/rocm/vllm:rocm7.14.0_rdna_ubuntu24.04_py3.14_pytorch_2.11.0_vllm_0.23.0
     image: localhost/vllm-fullbuild:review
+    build:
+      context: .
+      dockerfile: Dockerfile.fullbuild
+      args:
+        ROCM_IMAGE: ${ROCM_IMAGE}
+        GPU_ARCH: ${GPU_ARCH}
+        MAX_JOBS: ${MAX_JOBS}
+        TORCH_VERSION: ${TORCH_VERSION}
+        TORCHVISION_VERSION: ${TORCHVISION_VERSION}
+        TORCHAUDIO_VERSION: ${TORCHAUDIO_VERSION}
+        VLLM_REF: ${VLLM_REF}
+        VLLM_VERSION: ${VLLM_VERSION}
+        AITER_REF: ${AITER_REF}
+        FLASH_ATTN_REF: ${FLASH_ATTN_REF}
     container_name: vllm-mainline
     ports:
       - "8000:8000"
