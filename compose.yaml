@@ -1,17 +1,17 @@
 x-vllm-full-cache-volumes: &vllm_full_cache_volumes
-  - ./chat-templates/:/app/chat-templates:Z
-  - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
-  - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
-  - ${HOME}/.cache/triton:/root/.cache/triton:Z
-  - ${HOME}/.cache/triton:/root/.triton:Z
-  - ${HOME}/.cache/torchinductor:/root/.cache/torchinductor:Z
-  - ${HOME}/.cache/aiter:/root/.aiter:Z
-  - ${HOME}/.cache/comgr:/root/.cache/comgr:Z
-  - ${HOME}/.cache/tvm-ffi:/root/.cache/tvm-ffi:Z
+  - ./chat-templates/:/app/chat-templates
+  - ${HOME}/.cache/huggingface:/root/.cache/huggingface
+  - ${HOME}/.cache/vllm:/root/.cache/vllm
+  - ${HOME}/.cache/triton:/root/.cache/triton
+  - ${HOME}/.cache/triton:/root/.triton
+  - ${HOME}/.cache/torchinductor:/root/.cache/torchinductor
+  - ${HOME}/.cache/aiter:/root/.aiter
+  - ${HOME}/.cache/comgr:/root/.cache/comgr
+  - ${HOME}/.cache/tvm-ffi:/root/.cache/tvm-ffi
 
 x-llamacpp-cache-volumes: &llamacpp_cache_volumes
-  - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
-  - ${HOME}/.cache/llama.cpp:/root/.cache/llama.cpp:Z
+  - ${HOME}/.cache/huggingface:/root/.cache/huggingface
+  - ${HOME}/.cache/llama.cpp:/root/.cache/llama.cpp
 
 x-amd-devices: &amd_devices
   devices:
@@ -46,6 +46,7 @@ services:
         AITER_REF: ${AITER_REF}
         FLASH_ATTN_REF: ${FLASH_ATTN_REF}
     container_name: vllm
+    restart: unless-stopped
     ports:
       - "8000:8000"
     networks:
@@ -68,17 +69,24 @@ services:
       --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3
       --default-chat-template-kwargs '{"preserve_thinking": false}'
       --max-model-len 128000
+      --max-num-batched-tokens 4096
       --enable-prefix-caching
       --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
-      --gpu-memory-utilization 0.93
+      --gpu-memory-utilization 0.9
       --host 0.0.0.0
       --port 8000
       --dtype auto
       --max-num-seqs 4
-      --kv-cache-dtype fp8
+      --kv-cache-dtype auto
       -tp 2
       --attention-backend ROCM_AITER_UNIFIED_ATTN
-      --speculative-config '{"method": "mtp", "num_speculative_tokens": 3, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
+      --speculative-config '{"method": "mtp", "num_speculative_tokens": 4, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
+
+  # Previous default model:
+  # Qwen/Qwen3.6-35B-A3B-FP8
+  # --tokenizer Qwen/Qwen3.6-35B-A3B
+  # --served-model-name qwen3.6-35b-a3b
+  # --speculative-config '{"method": "mtp", "num_speculative_tokens": 4, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
 
   ##########
   # tools and dashboards
@@ -93,7 +101,7 @@ services:
       - OPENAI_BASE_URL=http://llm-backend:8000/v1
       - OPENAI_API_KEY=sk-empty
       - COOKIE_SECURE=false
-      - PUBLIC_ORIGIN=http://hirose.local:8001
+      - PUBLIC_ORIGIN=http://localhost:8001
     volumes:
       - chat-ui-data:/data
 
