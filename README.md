@@ -70,10 +70,14 @@ Notes:
   since `gfx1201` support requires a custom ROCm build from source.
 
 Runtime settings are in `compose.yaml`, including the model, vLLM command-line
-arguments, GPU count, ports, and mounted caches. The default model is
-`Qwen/Qwen3.6-27B-FP8` (dense) with tensor parallelism set to two GPUs. The
-previous default, `Qwen/Qwen3.6-35B-A3B-FP8` (MoE, 35B total / 3B active),
-is preserved as a comment in the service.
+arguments, GPU count, ports, and mounted caches. Two Qwen3.6 models are
+supported; the active one is uncommented in the service and the other is kept
+as a comment for easy switching:
+
+- `Qwen/Qwen3.6-35B-A3B-FP8` (MoE, 35B total / 3B active) — fastest
+  throughput; the current active default
+- `Qwen/Qwen3.6-27B-FP8` (dense, all 27B active) — more capable reasoning
+  model, slower on both prefill and decode
 
 The runtime environment is split between:
 
@@ -87,8 +91,8 @@ The runtime environment is split between:
 The gated-delta (Mamba-style) layers of the MoE `Qwen/Qwen3.6-35B-A3B-FP8`
 config force an attention block size of 2112 tokens (2176 with MTP), so
 `--max-num-batched-tokens 4096` is required for that model (the default of
-2048 fails with a Mamba cache align assertion). The dense 27B default has no
-such constraint; 4096 is retained as a latency-friendly middle ground.
+2048 fails with a Mamba cache align assertion). The dense 27B has no such
+constraint; 4096 is retained as a latency-friendly middle ground.
 
 Edit these files and `compose.yaml` to match your hardware and model before
 building or starting the services.
@@ -111,9 +115,9 @@ for reference.
 
 All runs use `llama-benchy` (0.4.0, via `uvx`) against the OpenAI-compatible
 API. The tuning is `--max-num-batched-tokens 4096`, `--max-num-seqs 4`,
-`--gpu-memory-utilization 0.9`, `-tp 2`. The default dense 27B runs MTP with
-4 draft tokens (marginally better than 3); the 35B-A3B tables below were
-measured at MTP3. Full per-run tables are kept in [`benchmarks/`](benchmarks/).
+`--gpu-memory-utilization 0.9`, `-tp 2`, MTP4, `--kv-cache-dtype auto` (bf16).
+Full per-run tables are kept in [`benchmarks/`](benchmarks/). Both models share
+the same stack, so the tables below are directly comparable for picking one.
 
 `--kv-cache-dtype` currently uses `auto` (bf16). This required patching AITER:
 on gfx1201 the Triton unified-attention kernel staged K/V tiles in the 64 KiB
@@ -127,7 +131,27 @@ which the aiter-builder stage in `Dockerfile.fullbuild` applies at build time.
 2026-05-22. Note bf16 KV uses ~2x the KV memory of fp8: ~240k vs ~485k tokens
 of context.)
 
-Single-request speeds with the `Qwen/Qwen3.6-35B-A3B-FP8` (MoE) model (MTP3):
+### Latest: 2026-08-07, MTP4, bf16 KV
+
+Single-request speeds, same tuning for both models:
+
+| model           |   test |               t/s |      peak t/s |      ttfr (ms) |   est_ppt (ms) |   e2e_ttft (ms) |
+|:----------------|-------:|------------------:|--------------:|---------------:|---------------:|----------------:|
+| qwen3.6-27b     | pp2048 | 2965.39 ± 83.75  |               |  692.64 ± 19.15 |  691.51 ± 19.15 |   692.64 ± 19.15 |
+| qwen3.6-27b     |   tg32 |     83.86 ± 5.08  | 86.56 ± 5.25  |                |                |                 |
+| qwen3.6-27b     |   tg128|     70.88 ± 3.28  | 76.67 ± 2.62  |                |                |                 |
+| qwen3.6-35b-a3b | pp2048 | 10161.59 ± 197.40 |               |  202.86 ± 3.90 |  201.72 ± 3.90 |   202.86 ± 3.90 |
+| qwen3.6-35b-a3b |   tg32 |     172.53 ± 0.75 | 178.10 ± 0.78 |                |                |                 |
+| qwen3.6-35b-a3b |   tg128|     153.73 ± 8.97 | 154.94 ± 9.04 |                |                |                 |
+
+Sources: `benchmarks/08_07_qwen3.6-27b_mtp4_bf16kv.md`,
+`benchmarks/08_07_qwen3.6-35b-a3b_mtp4_bf16kv.md`. The MoE 35B-A3B is ~2x
+faster on decode and ~3.4x faster on prefill/TTFT than the dense 27B.
+
+### 35B-A3B (MoE) — depth sweep (MTP3, 2026-08-01)
+
+Single-request speeds with the `Qwen/Qwen3.6-35B-A3B-FP8` model at increasing
+prompt depth:
 
 | model                      |            test |               t/s |       peak t/s |       ttfr (ms) |    est_ppt (ms) |   e2e_ttft (ms) |
 |:---------------------------|----------------:|------------------:|---------------:|----------------:|----------------:|----------------:|
@@ -150,7 +174,7 @@ Single-request speeds with the `Qwen/Qwen3.6-35B-A3B-FP8` (MoE) model (MTP3):
 
 ### 27B vs 35B-A3B (MTP3)
 
-The dense default `Qwen/Qwen3.6-27B-FP8` is ~2.2-2.4x slower on decode and ~4x
+The dense `Qwen/Qwen3.6-27B-FP8` is ~2.2-2.4x slower on decode and ~4x
 slower on prefill/TTFT than the MoE `Qwen/Qwen3.6-35B-A3B-FP8` (all 27B params
 active per token vs ~3B active for the MoE). Side by side, same tuning:
 
@@ -184,8 +208,9 @@ Dense-model tuning notes (27B, measured):
 
 ### MTP draft tokens
 
-Enabling MTP (multi-token prediction) roughly doubles decode speed. Two draft
-tokens were tried before settling on three:
+Enabling MTP (multi-token prediction) roughly doubles decode speed. Draft-token
+count was tuned on the 35B-A3B model (off/2/3 below); both models now run MTP4,
+which is a further small win on the dense 27B (tg32 76.6 vs 70.2 t/s at MTP3).
 
 | MTP | pp2048 (t/s) | ttfr (ms) | tg32 (t/s) | acceptance |
 |:----|-------------:|----------:|-----------:|-----------:|
