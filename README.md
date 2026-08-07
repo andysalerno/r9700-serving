@@ -71,9 +71,9 @@ Notes:
 
 Runtime settings are in `compose.yaml`, including the model, vLLM command-line
 arguments, GPU count, ports, and mounted caches. The default model is
-`Qwen/Qwen3.6-35B-A3B-FP8` (MoE, 35B total / 3B active) with tensor parallelism
-set to two GPUs. The previous default, `Qwen/Qwen3.6-27B-FP8` (dense), is
-preserved as a comment in the service.
+`Qwen/Qwen3.6-27B-FP8` (dense) with tensor parallelism set to two GPUs. The
+previous default, `Qwen/Qwen3.6-35B-A3B-FP8` (MoE, 35B total / 3B active),
+is preserved as a comment in the service.
 
 The runtime environment is split between:
 
@@ -87,8 +87,8 @@ The runtime environment is split between:
 The gated-delta (Mamba-style) layers of the MoE `Qwen/Qwen3.6-35B-A3B-FP8`
 config force an attention block size of 2112 tokens (2176 with MTP), so
 `--max-num-batched-tokens 4096` is required for that model (the default of
-2048 fails with a Mamba cache align assertion). The dense 27B alternative has
-no such constraint; 4096 is retained as a latency-friendly middle ground.
+2048 fails with a Mamba cache align assertion). The dense 27B default has no
+such constraint; 4096 is retained as a latency-friendly middle ground.
 
 Edit these files and `compose.yaml` to match your hardware and model before
 building or starting the services.
@@ -111,9 +111,9 @@ for reference.
 
 All runs use `llama-benchy` (0.4.0, via `uvx`) against the OpenAI-compatible
 API. The tuning is `--max-num-batched-tokens 4096`, `--max-num-seqs 4`,
-`--gpu-memory-utilization 0.9`, `-tp 2`. The default 35B-A3B runs MTP with 4
-draft tokens; the 35B-A3B tables below were measured at MTP3 unless noted. Full
-per-run tables are kept in [`benchmarks/`](benchmarks/).
+`--gpu-memory-utilization 0.9`, `-tp 2`. The default dense 27B runs MTP with
+4 draft tokens (marginally better than 3); the 35B-A3B tables below were
+measured at MTP3. Full per-run tables are kept in [`benchmarks/`](benchmarks/).
 
 `--kv-cache-dtype` currently uses `auto` (bf16). This required patching AITER:
 on gfx1201 the Triton unified-attention kernel staged K/V tiles in the 64 KiB
@@ -150,7 +150,7 @@ Single-request speeds with the `Qwen/Qwen3.6-35B-A3B-FP8` (MoE) model (MTP3):
 
 ### 27B vs 35B-A3B (MTP3)
 
-The dense `Qwen/Qwen3.6-27B-FP8` is ~2.2-2.4x slower on decode and ~4x
+The dense default `Qwen/Qwen3.6-27B-FP8` is ~2.2-2.4x slower on decode and ~4x
 slower on prefill/TTFT than the MoE `Qwen/Qwen3.6-35B-A3B-FP8` (all 27B params
 active per token vs ~3B active for the MoE). Side by side, same tuning:
 
@@ -184,19 +184,14 @@ Dense-model tuning notes (27B, measured):
 
 ### MTP draft tokens
 
-Enabling MTP (multi-token prediction) roughly doubles decode speed. On the
-35B-A3B model, two draft tokens were tried before settling on three; the
-current active setting is four:
+Enabling MTP (multi-token prediction) roughly doubles decode speed. Two draft
+tokens were tried before settling on three:
 
 | MTP | pp2048 (t/s) | ttfr (ms) | tg32 (t/s) | acceptance |
 |:----|-------------:|----------:|-----------:|-----------:|
 | off |        10075 |       204 |       82.9 |         -  |
 | 2    |      8000 ± 527 |   259 |  145.54 ± 6.51 | 59.8% |
 | 3    |  9354 ± 171.64 |   220 |  143.80 ± 6.85 | **72.3%** |
-
-At MTP4 (bf16 KV, 2026-08-07) the 35B-A3B reaches ~172 t/s at tg32 and ~154 t/s
-at tg128; see
-[`benchmarks/08_07_qwen3.6-35b-a3b_mtp4_bf16kv.md`](benchmarks/08_07_qwen3.6-35b-a3b_mtp4_bf16kv.md).
 
 ### Concurrency and generation length
 
