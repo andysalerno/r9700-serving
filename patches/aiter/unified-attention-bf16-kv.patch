@@ -1,0 +1,31 @@
+diff -ruN a/aiter/ops/triton/attention/unified_attention.py b/aiter/ops/triton/attention/unified_attention.py
+--- a/aiter/ops/triton/attention/unified_attention.py	2026-08-07 20:41:59.915928770 +0000
++++ b/aiter/ops/triton/attention/unified_attention.py	2026-08-07 20:41:59.916654171 +0000
+@@ -106,6 +106,12 @@
+     else:
+         # to not have masking when loading KV
+         TILE_SIZE = min(64, triton.next_power_of_2(block_size))
++        # bf16 KV tiles are 2x the bytes of fp8: cap TILE_SIZE so the staged
++        # K/V tiles fit within the 64 KiB workgroup shared-memory limit on
++        # RDNA (gfx1201 would otherwise fail at warmup with
++        # "out of resource: shared memory, Required: 65792, Hardware limit: 65536").
++        if kv_cache_dtype == torch.bfloat16:
++            TILE_SIZE = min(32, TILE_SIZE)
+         if arch.is_rdna:
+             num_stages_2d, num_warps = 1, 4
+         else:
+@@ -210,6 +216,14 @@
+ 
+         TILE_SIZE = min(64, triton.next_power_of_2(block_size))
+ 
++        # bf16 KV tiles are 2x the bytes of fp8: keep the staged K/V tiles and
++        # pipeline depth within the 64 KiB workgroup shared-memory limit on
++        # RDNA (gfx1201 would otherwise raise
++        # "out of resource: shared memory, Hardware limit: 65536").
++        if kv_cache_dtype == torch.bfloat16:
++            TILE_SIZE = min(32, TILE_SIZE)
++            attn_stages = 1
++
+         MAX_SEGMENTS = min(128, math.ceil(max_seqlen_k / TILE_SIZE))
+         MIN_SEGMENTS = min(8, MAX_SEGMENTS)
+         if head_size >= 512 and not arch.is_rdna:

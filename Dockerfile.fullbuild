@@ -130,13 +130,13 @@ RUN mkdir aiter \
     && git -C aiter checkout --detach FETCH_HEAD \
     && git -C aiter submodule update --init --recursive --depth=1
 
-# COPY patches/aiter/ /patches/aiter/
+COPY patches/aiter/ /patches/aiter/
 
-# RUN cd /src/aiter \
-#     && for patch in /patches/aiter/*.patch; do \
-#          [ -e "$patch" ] || continue; \
-#          git apply "$patch"; \
-#        done
+RUN cd /src/aiter \
+    && for patch in /patches/aiter/*.patch; do \
+         [ -e "$patch" ] || continue; \
+         git apply "$patch"; \
+       done
 
 RUN --mount=type=cache,target=/root/.cache/pip \
     cd /src/aiter \

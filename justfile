@@ -1,5 +1,9 @@
 set positional-arguments
 
+# Container runtime: "docker" (default) or "podman". Override with
+# `just --set runtime podman <recipe>` or `RUNTIME=podman just <recipe>`.
+runtime := env_var_or_default('RUNTIME', 'docker')
+
 _default:
     @just --list
 
@@ -25,14 +29,14 @@ clear-vllm-caches:
     done
 
 build:
-    podman compose --env-file env/env.fullbuild build
+    {{runtime}} compose --env-file env/env.fullbuild build
 
 
 up:
-    podman compose up -d
+    {{runtime}} compose up -d
 
 logs:
-    podman compose logs -f
+    {{runtime}} compose logs -f
 
 down:
-    podman compose down
+    {{runtime}} compose down
