@@ -13,7 +13,7 @@ OpenAI-compatible API.
   the container runs with `label=disable`
 - One or more R9700 GPUs; the included configuration assumes two
 
-## Build and run
+## Quick start
 
 The `justfile` provides the complete workflow:
 
