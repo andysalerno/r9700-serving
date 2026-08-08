@@ -1,8 +1,8 @@
 set positional-arguments
 
-# Container runtime: "podman" (default) or "docker". Override with
-# `just --set runtime docker <recipe>` or `RUNTIME=docker just <recipe>`.
-runtime := env_var_or_default('RUNTIME', 'podman')
+# Container runtime: "docker" (default) or "podman". Override with
+# `just --set runtime podman <recipe>` or `RUNTIME=podman just <recipe>`.
+runtime := env_var_or_default('RUNTIME', 'docker')
 
 _default:
     @just --list
