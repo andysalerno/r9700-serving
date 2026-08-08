@@ -48,7 +48,7 @@ services:
     container_name: vllm
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8180:8180"
     networks:
       default:
         aliases:
@@ -61,9 +61,9 @@ services:
       - GPU_MAX_HW_QUEUES=1
       - NCCL_P2P_DISABLE=1
     command: >
-      Qwen/Qwen3.6-27B-FP8
-      --tokenizer Qwen/Qwen3.6-27B
-      --served-model-name qwen3.6-27b
+      Qwen/Qwen3.6-35B-A3B-FP8
+      --tokenizer Qwen/Qwen3.6-35B-A3B
+      --served-model-name qwen3.6-35b-a3b
       --chat-template /app/chat-templates/qwen36.jinja
       --limit-mm-per-prompt '{"image": 99, "audio": 0, "video": 0}'
       --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3
@@ -74,7 +74,7 @@ services:
       --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
       --gpu-memory-utilization 0.9
       --host 0.0.0.0
-      --port 8000
+      --port 8180
       --dtype auto
       --max-num-seqs 4
       --kv-cache-dtype auto
@@ -82,31 +82,11 @@ services:
       --attention-backend ROCM_AITER_UNIFIED_ATTN
       --speculative-config '{"method": "mtp", "num_speculative_tokens": 4, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
 
-  # Previous default model:
-  # Qwen/Qwen3.6-35B-A3B-FP8
-  # --tokenizer Qwen/Qwen3.6-35B-A3B
-  # --served-model-name qwen3.6-35b-a3b
+  # Alternate model (dense; uncomment to switch):
+  # Qwen/Qwen3.6-27B-FP8
+  # --tokenizer Qwen/Qwen3.6-27B
+  # --served-model-name qwen3.6-27b
   # --speculative-config '{"method": "mtp", "num_speculative_tokens": 4, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
-
-  ##########
-  # tools and dashboards
-  ##########
-
-  chatui:
-    image: ghcr.io/huggingface/chat-ui-db:latest
-    container_name: chatui
-    ports:
-      - "8001:3000"
-    environment:
-      - OPENAI_BASE_URL=http://llm-backend:8000/v1
-      - OPENAI_API_KEY=sk-empty
-      - COOKIE_SECURE=false
-      - PUBLIC_ORIGIN=http://localhost:8001
-    volumes:
-      - chat-ui-data:/data
-
-volumes:
-  chat-ui-data:
 
 # Keeping this around since it is useful:
 # google/gemma-4-31B-it-qat-w4a16-ct
@@ -122,7 +102,7 @@ volumes:
 # --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 64}'
 # --gpu-memory-utilization 0.93
 # --host 0.0.0.0
-# --port 8000
+# --port 8180
 # --dtype auto
 # --max-num-seqs 4
 # -tp 2
