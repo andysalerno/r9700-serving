@@ -6,8 +6,8 @@ OpenAI-compatible API.
 
 ## Requirements
 
-- Podman with the Compose plugin (`podman compose`), or Docker (`docker
-  compose`); `just` recipes default to Podman
+- Docker with the Compose plugin (`docker compose`), or Podman (`podman
+  compose`); `just` recipes default to Docker
 - [`just`](https://just.systems/)
 - SELinux hosts need no special relabeling: bind mounts mount unlabeled because
   the container runs with `label=disable`
@@ -31,11 +31,11 @@ just logs
 just down
 ```
 
-To use Docker instead of Podman, set the runtime for a single invocation:
+To use Podman instead of Docker, set the runtime for a single invocation:
 
 ```sh
-just --set runtime docker build
-RUNTIME=docker just up
+just --set runtime podman build
+RUNTIME=podman just up
 ```
 
 The vLLM OpenAI-compatible API is available at
@@ -87,6 +87,14 @@ The runtime environment is split between:
 - `env/aiter-moe-unified-attention.env` enables AITER MoE/FP8 kernels in
   addition, but AITER's FP8 MoE backend does not yet support `gfx1201`
   (vLLM aborts at startup), so it is not used by default
+
+The two GPUs sit on separate PCIe 5.0 x8 root ports routed through the CPU, and
+P2P is disabled (`NCCL_P2P_DISABLE=1`), so all TP-2 traffic bounces through
+host memory (SHM). NCCL channel count is pinned to 4
+(`NCCL_MIN_NCHANNELS`/`NCCL_MAX_NCHANNELS` in `env/2xr9700.vllm.common`):
+`all_reduce_perf` measured 4 channels as the bandwidth sweet spot across
+message sizes (see [`BENCHMARKS.md`](BENCHMARKS.md)), and a serving A/B
+improved tg128 decode by ~12-19% over the old 112-channel setting.
 
 The gated-delta (Mamba-style) layers of the MoE `Qwen/Qwen3.6-35B-A3B-FP8`
 config force an attention block size of 2112 tokens (2176 with MTP), so

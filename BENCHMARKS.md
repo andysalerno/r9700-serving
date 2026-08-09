@@ -76,7 +76,41 @@ Dense-model tuning notes (27B, measured):
 
 ## Findings
 
-### MTP draft tokens
+### NCCL channels (2026-08-09)
+
+The two R9700s sit on separate PCIe 5.0 x8 root ports routed through the CPU,
+with P2P disabled (`NCCL_P2P_DISABLE=1`), so TP-2 traffic bounces through host
+memory. RCCL auto-detects this as a SHM path and auto-tunes to 2 channels;
+the previous config forced `NCCL_MIN_NCHANNELS=112` (with no max), which was
+pure overhead on a single x8 link.
+
+`all_reduce_perf` (rccl-tests, 2 GPUs, out-of-place busbw in GB/s):
+
+| channels |     1M |    4M |     8M |    32M |    64M |
+|:---------|-------:|------:|-------:|-------:|-------:|
+| 1        |   8.04 |  9.51 |  11.09 |  11.81 |  11.94 |
+| 2        |   8.88 | 11.19 |  12.15 |  12.54 |  12.61 |
+| **4**    | **9.21** | 11.50 | 11.86 | **12.80** | **12.91** |
+| 8        |   8.88 | 11.50 |  11.79 |  12.72 |  12.87 |
+| 16       |   8.20 | 11.67 |  12.10 |  12.76 |  12.89 |
+| 32       |   7.52 | 10.75 |  11.70 |  12.51 |  12.74 |
+| 64       |   8.99 | 11.10 |  12.15 |  12.53 |  12.59 |
+| 112      |   9.13 | 11.07 |  12.16 |  12.52 |  12.60 |
+
+4 channels is fastest or near-fastest at every size and never below the pack;
+112 is never the best. Serving A/B (`llama-benchy`, 35B-A3B MTP4, 3 runs each)
+confirms:
+
+| config | tg32 (t/s) | tg128 (t/s) |
+|:-------|-----------:|------------:|
+| 112 (old) | 174.5 | 133.3 |
+| **4 (active)** | 160-183 | 146-159 |
+
+tg128 decode improved ~12-19% on 4 channels; tg32 and prefill are a wash.
+2 channels regressed vs 4. Recommendation: keep `NCCL_MIN_NCHANNELS` and
+`NCCL_MAX_NCHANNELS` both at 4 on this platform.
+
+
 
 Enabling MTP (multi-token prediction) roughly doubles decode speed. Draft-token
 count was tuned on the 35B-A3B model (off/2/3 below); both models now run MTP4,
