@@ -4,7 +4,6 @@ x-vllm-full-cache-volumes: &vllm_full_cache_volumes
   - ${HOME}/.cache/huggingface:/root/.cache/huggingface
   - ${HOME}/.cache/vllm:/root/.cache/vllm
   - ${HOME}/.cache/triton:/root/.cache/triton
-  - ${HOME}/.cache/triton:/root/.triton
   - ${HOME}/.cache/torchinductor:/root/.cache/torchinductor
   - ${HOME}/.cache/aiter:/root/.aiter
   - ${HOME}/.cache/comgr:/root/.cache/comgr

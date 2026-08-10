@@ -3,12 +3,13 @@ import itertools
 import json
 import os
 import time
-from concurrent.futures import ProcessPoolExecutor
-from concurrent.futures.process import BrokenProcessPool
 
 import torch
 
 import vllm.model_executor.layers.quantization.utils.fp8_utils as fpu
+
+from packaging.version import Version, InvalidVersion
+import vllm
 
 BLOCK = [128, 128]
 
@@ -98,7 +99,6 @@ def main():
     ap.add_argument("--M", type=str,
                     default="1,2,4,8,16,32,64,128,256,512,1024,2048,4096")
     ap.add_argument("--reps", type=int, default=50)
-    ap.add_argument("--warmers", type=int, default=1)
     ap.add_argument("--out", type=str, default="/tmp/w8a8_cfgs")
     args = ap.parse_args()
 
@@ -111,25 +111,22 @@ def main():
             "GROUP_SIZE_M": 32, "num_warps": 4, "num_stages": 2}
     configs = candidate_configs(base)
 
-    # Warm/compile every unique kernel config in parallel across all cores.
-    # The Triton cache key is the config dict (N/K are runtime args), so this
-    # covers every (shape, M) combination below. Configs that overflow the
-    # GPU's shared memory (LDS) fail at load time and are dropped here.
-    print(f"### warming {len(configs)} kernels across {args.warmers} workers",
-          flush=True)
-    warm_tasks = [(1, 2048, 2048, cfg, 1) for cfg in configs]
-    good_configs = []
     try:
-        with ProcessPoolExecutor(max_workers=args.warmers) as ex:
-            for cfg, ok in zip(configs, ex.map(warm_one, warm_tasks, chunksize=1)):
-                if ok:
-                    good_configs.append(cfg)
-    except BrokenProcessPool as e:
-        print(f"  pool crashed ({e}), falling back to serial warm", flush=True)
-        good_configs.clear()
-        for cfg in configs:
-            if warm_one((1, 2048, 2048, cfg, 1)):
-                good_configs.append(cfg)
+        vllm_ver = Version(vllm.__version__)
+        if vllm_ver >= Version("0.27"):
+            print("warning: vLLM >=0.27 detected; internal fp8_utils API may have "
+                  "changed. Verify get_w8a8_block_fp8_configs still exists.",
+                  flush=True)
+    except InvalidVersion:
+        pass
+
+    # Warm/compile every unique kernel config. Configs that overflow the GPU's
+    # shared memory (LDS) fail at load time and are dropped here.
+    print(f"### warming {len(configs)} kernels", flush=True)
+    good_configs = []
+    for cfg in configs:
+        if warm_one((1, 2048, 2048, cfg, 1)):
+            good_configs.append(cfg)
     print(f"  warm done: {len(good_configs)}/{len(configs)} kernels usable",
           flush=True)
 

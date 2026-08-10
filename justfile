@@ -31,6 +31,8 @@ clear-vllm-caches:
 build:
     {{runtime}} compose --env-file env/env.fullbuild build
 
+rebuild:
+    {{runtime}} compose --env-file env/env.fullbuild build --no-cache
 
 up:
     {{runtime}} compose up -d

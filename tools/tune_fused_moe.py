@@ -9,14 +9,10 @@ import vllm.model_executor.layers.fused_moe.fused_moe as fm
 from vllm.model_executor.layers.fused_moe import override_config
 from vllm.model_executor.layers.fused_moe.config import fp8_w8a8_moe_quant_config
 
-E = 256
-N = 512
-K = 2048
-TOP_K = 8
 BLOCK_SHAPE = [128, 128]
 
 
-def make_tensors(M: int, device="cuda"):
+def make_tensors(M: int, E: int, N: int, K: int, TOP_K: int, device="cuda"):
     torch.manual_seed(0)
     hidden = (torch.randn(M, K, device=device) * 0.01).to(torch.bfloat16)
     w1 = (torch.randn(E, 2 * N, K, device=device) * 0.01).to(torch.float8_e4m3fn)
@@ -29,8 +25,8 @@ def make_tensors(M: int, device="cuda"):
     return hidden, w1, w2, topk_weights, topk_ids, q
 
 
-def bench_one(M, cfg, reps=50, warmup=5):
-    hidden, w1, w2, topk_weights, topk_ids, q = make_tensors(M)
+def bench_one(M, E, N, K, TOP_K, cfg, reps=50, warmup=5):
+    hidden, w1, w2, topk_weights, topk_ids, q = make_tensors(M, E, N, K, TOP_K)
     try:
         with override_config(cfg):
             for _ in range(warmup):
@@ -48,7 +44,7 @@ def bench_one(M, cfg, reps=50, warmup=5):
                 times.append(time.perf_counter() - t0)
         med = sorted(times)[len(times) // 2]
         return med
-    except Exception:
+    except (torch.cuda.OutOfMemoryError, RuntimeError, ValueError):
         return None
 
 
@@ -92,13 +88,28 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--M", type=str,
                     default="1,2,4,8,16,24,32,48,64,96,128,256,512,1024,1536,2048,3072,4096")
+    ap.add_argument("--E", type=int, default=256, help="Number of experts")
+    ap.add_argument("--N", type=int, default=512, help="Expert hidden dimension")
+    ap.add_argument("--K", type=int, default=2048, help="Model hidden dimension")
+    ap.add_argument("--topk", type=int, default=8, help="Top-K routing")
     ap.add_argument("--reps", type=int, default=50)
-    ap.add_argument("--out", type=str,
-                    default="/app/fused_moe_configs/E=256,N=512,device_name=AMD_Radeon_R9700,dtype=fp8_w8a8,block_shape=[128,128].json")
-    ap.add_argument("--seed", type=str,
-                    default="/app/fused_moe_configs/E=256,N=512,device_name=AMD_Radeon_R9700,dtype=fp8_w8a8,block_shape=[128,128].json")
+    ap.add_argument("--out", type=str, default=None)
+    ap.add_argument("--seed", type=str, default=None)
     ap.add_argument("--no-sweep", action="store_true")
     args = ap.parse_args()
+
+    E = args.E
+    N = args.N
+    K = args.K
+    TOP_K = args.topk
+
+    device_name = torch.cuda.get_device_name(0).replace(" ", "_")
+    cfg_dir = "/app/fused_moe_configs"
+    out_default = f"{cfg_dir}/E={E},N={N},device_name={device_name},dtype=fp8_w8a8,block_shape={BLOCK_SHAPE}.json"
+    if args.out is None:
+        args.out = out_default
+    if args.seed is None:
+        args.seed = out_default
 
     Ms = [int(x) for x in args.M.split(",")]
 
@@ -127,7 +138,7 @@ def main():
               f"{base.get('BLOCK_SIZE_K')}", flush=True)
         scored = []
         for cfg in configs:
-            t = bench_one(M, cfg, reps=args.reps)
+            t = bench_one(M, E, N, K, TOP_K, cfg, reps=args.reps)
             if t is not None:
                 scored.append((t, cfg))
             print(f"  {cfg['BLOCK_SIZE_M']}/{cfg['BLOCK_SIZE_N']}/"
