@@ -23,6 +23,9 @@ just down        # Stop and remove containers
 ```
 
 To use Podman: `just --set runtime podman build` or `RUNTIME=podman just up`.
+Run `just --list` to see all recipes including `rebuild` (force-rebuild) and
+`clear-vllm-caches` (wipe host-side Triton/Inductor/AITER caches; preserves
+HuggingFace model cache).
 
 The vLLM OpenAI-compatible API is available at `http://localhost:8180/v1`.
 
@@ -38,6 +41,11 @@ Build versions are pinned in `env/env.fullbuild`.
 | AITER        | v0.1.19.post2 |
 | Flash Attention | @ 1cc7ff67 |
 
+ROCm 7.14 is on AMDs "TheRock" technology-preview stream (7.9/7.13/7.14); the
+production 7.2.x line lacks RDNA4/`gfx1201` support. AITER `v0.1.19.post2` is
+the latest tagged release; vLLM is a dev build ahead of 0.26.0 since `gfx1201`
+requires source builds.
+
 Runtime settings are in `compose.yaml`. The active model is
 `Qwen/Qwen3.6-35B-A3B-FP8` (MoE, 35B total / 3B active); the dense
 `Qwen/Qwen3.6-27B-FP8` is available as a commented alternative.
@@ -49,6 +57,8 @@ Runtime environment is split across three files:
   (not active: AITER's FP8 MoE backend does not yet support `gfx1201`)
 
 Key tuning decisions:
+- **MTP4 speculative decoding**: 4 draft tokens per step (~72% acceptance on
+  35B-A3B), roughly doubles decode throughput vs no MTP.
 - **`GPU_MAX_HW_QUEUES=1`** is required. Multiple queues cause a 55-63% decode
   throughput regression on RDNA4 — one queue per process avoids kernel launch
   scheduling overhead.
