@@ -37,13 +37,13 @@ Build versions are pinned in `env/env.fullbuild`.
 |:-------------|:--------|
 | ROCm         | 7.14.0 (`rocm/dev-ubuntu-24.04:7.14.0-full`) |
 | PyTorch      | 2.12.0+rocm7.14.0 |
-| vLLM         | 0.26.2.dev0+g0406ba22c431 |
+| vLLM         | 0.27.0rc2 |
 | AITER        | v0.1.19.post2 |
 | Flash Attention | @ 1cc7ff67 |
 
 ROCm 7.14 is on AMDs "TheRock" technology-preview stream (7.9/7.13/7.14); the
 production 7.2.x line lacks RDNA4/`gfx1201` support. AITER `v0.1.19.post2` is
-the latest tagged release; vLLM is a dev build ahead of 0.26.0 since `gfx1201`
+the latest tagged release; vLLM is the 0.27 RC2 preview since `gfx1201`
 requires source builds.
 
 Runtime settings are in `compose.yaml`. The active model is
@@ -85,14 +85,15 @@ Key tuning decisions:
 
 ## Performance
 
-Measured on 2× R9700, MTP4, bf16 KV, single request.
+Measured on 2× R9700, MTP4, bf16 KV, single request, vLLM 0.27.0rc2.
 
 | model                     | pp2048 t/s | tg32 t/s | tg128 t/s |
 |:--------------------------|-----------:|---------:|----------:|
 | Qwen3.6-27B (andy baseline) |     2750 |    81.9 |    —     |
 | Qwen3.6-35B-A3B (no MTP)   |   ~10075 |     ~83 |    —     |
-| Qwen3.6-27B-FP8 (current)  |    ~2927 |     ~75 |    ~66   |
-| Qwen3.6-35B-A3B-FP8 (current) | ~10864 |    ~182 |   ~144   |
+| Qwen3.6-27B-FP8 (v0.26)     |    ~2927 |     ~75 |    ~66   |
+| Qwen3.6-35B-A3B-FP8 (v0.26) | ~10864 |    ~182 |   ~144   |
+| Qwen3.6-35B-A3B-FP8 (v0.27) | ~11143 |    ~189 |   ~151   |
 
 Full methodology, depth sweeps, and tuning history in
 [`BENCHMARKS.md`](BENCHMARKS.md).
