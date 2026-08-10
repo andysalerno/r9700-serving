@@ -60,6 +60,10 @@ Key tuning decisions:
   regression.
 - **`--max-num-batched-tokens 4096`** is required for the MoE model (its
   gated-delta layers force an attention block size of 2112 tokens).
+- **Tuned MoE kernel configs** (`fused_moe_configs/`): per-token-count optimal
+  Triton tile sizes for the stock vLLM `fused_experts` kernel (not AITER MoE,
+  which doesn't support gfx1201). Deployed via
+  `VLLM_TUNED_CONFIG_FOLDER`. Provides +5-11% throughput.
 
 ## Dead ends
 
