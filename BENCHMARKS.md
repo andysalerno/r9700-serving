@@ -13,31 +13,45 @@ overflows the R9700's 64 KiB LDS at `TILE_SIZE=64` with bf16 K/V tiles. The fix
 caps `TILE_SIZE` to 32 and `num_stages` to 1. Applied via
 [`patches/aiter/unified-attention-bf16-kv.patch`](patches/aiter/).
 
-## Current (2026-08-10, MTP4, bf16 KV, tuned MoE, NCCL 4-ch)
+## Current (2026-08-10, vLLM 0.27.0rc2, MTP4, bf16 KV, tuned MoE, NCCL 4-ch)
 
-Average of 3 runs, 3 reps each.
+Single-run data; averages across 3 benchmark sets are in the comparison table.
 
-| model                     |   test |     t/s |
-|:--------------------------|-------:|--------:|
-| Qwen/Qwen3.6-27B-FP8      | pp2048 |  ~2927  |
-| Qwen/Qwen3.6-27B-FP8      |   tg32 |    ~75  |
-| Qwen/Qwen3.6-27B-FP8      |  tg128 |    ~66  |
-| Qwen/Qwen3.6-35B-A3B-FP8  | pp2048 | ~10864  |
-| Qwen/Qwen3.6-35B-A3B-FP8  |   tg32 |   ~182  |
-| Qwen/Qwen3.6-35B-A3B-FP8  |  tg128 |   ~144  |
+| model                     |   test |       t/s |
+|:--------------------------|-------:|----------:|
+| Qwen/Qwen3.6-27B-FP8      | pp2048 | 2924.03 ± 19.96 |
+| Qwen/Qwen3.6-27B-FP8      |   tg32 |    87.42 ± 0.09 |
+| Qwen/Qwen3.6-27B-FP8      |  tg128 |    76.34 ± 6.50 |
+| Qwen/Qwen3.6-35B-A3B-FP8  | pp2048 | 11287.33 ± 367.56 |
+| Qwen/Qwen3.6-35B-A3B-FP8  |   tg32 |   188.80 ± 13.15 |
+| Qwen/Qwen3.6-35B-A3B-FP8  |  tg128 |   150.74 ± 11.28 |
+
+### v0.26 → v0.27 upgrade
+
+| model          | metric  | v0.26.2.dev0 | v0.27.0rc2 | delta |
+|:---------------|:--------|-------------:|-----------:|------:|
+| 27B            | pp2048  |      ~2927   |    ~2916   | flat  |
+| 27B            | tg32    |        ~75   |      ~87   | **+16%** |
+| 27B            | tg128   |        ~66   |      ~76   | **+15%** |
+| 35B-A3B        | pp2048  |     ~10864   |   ~11143   | +2.6%  |
+| 35B-A3B        | tg32    |       ~182   |     ~189   | +3.8%  |
+| 35B-A3B        | tg128   |       ~144   |     ~151   | +4.9%  |
+
+The dense 27B benefits most from v0.27's spec-decode improvements and
+multi-layer MTP refactor. Both models show consistent gains with no regressions.
 
 ## Baseline comparisons
 
-| description                      | pp2048 t/s | tg32 t/s |
-|:---------------------------------|-----------:|---------:|
-| 27B andy upstream (MTP3, fp8 KV) |     2750   |   81.9   |
-| 35B-A3B no MTP, stock config     |   ~10075   |    ~83   |
-| 27B current (MTP4, bf16 KV)      |    ~2927   |    ~75   |
-| 35B current (all optimizations)  |   ~10864   |   ~182   |
+| description                      | pp2048 t/s | tg32 t/s | vLLM  |
+|:---------------------------------|-----------:|---------:|------:|
+| 27B andy upstream (MTP3, fp8 KV) |     2750   |   81.9   | v0.25 |
+| 35B-A3B no MTP, stock config     |   ~10075   |    ~83   | v0.26 |
+| 27B (MTP4, bf16 KV, all opts)    |    ~2916   |    ~87   | v0.27 |
+| 35B (MTP4, bf16 KV, all opts)    |   ~11143   |   ~189   | v0.27 |
 
-The 35B-A3B MoE model is 3.7× faster on prefill and 2.2× faster on decode than
-the dense 27B. MTP4 + tuned MoE configs + NCCL tuning deliver 2.2× decode
-throughput over the no-MTP baseline.
+The 35B-A3B MoE model is 3.8× faster on prefill and 2.2× faster on decode than
+the dense 27B. MTP4 + tuned MoE configs + NCCL tuning + v0.27 deliver 2.3×
+decode throughput over the no-MTP baseline.
 
 ## MTP impact (35B-A3B)
 
