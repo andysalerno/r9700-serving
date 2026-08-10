@@ -92,6 +92,7 @@ Measured on 2× R9700, MTP4, bf16 KV, single request, vLLM 0.27.0rc2.
 | Qwen3.6-27B (andy baseline) |     2750 |    81.9 |    —     |
 | Qwen3.6-35B-A3B (no MTP)   |   ~10075 |     ~83 |    —     |
 | Qwen3.6-27B-FP8 (v0.26)     |    ~2927 |     ~75 |    ~66   |
+| Qwen3.6-27B-FP8 (v0.27)     |    ~2916 |     ~87 |    ~76   |
 | Qwen3.6-35B-A3B-FP8 (v0.26) | ~10864 |    ~182 |   ~144   |
 | Qwen3.6-35B-A3B-FP8 (v0.27) | ~11143 |    ~189 |   ~151   |
 
