@@ -151,42 +151,42 @@ space (BK=256 halves inner-loop trips, BN=256 halves thread blocks along N).
 Dense W8A8, with its four viable tile shapes, has nothing left to tune — the
 default configs already pick the optimal BM for each M. Abandoned.
 
-## Performance vs upstream
+## Performance vs upstream fork
 
-How this fork's customizations compare against the upstream vLLM ROCm
-stack serving the same model on the same hardware (2× Radeon AI PRO R9700,
-`gfx1201`, TP=2). "Upstream" means unpatched vLLM main with the default
-RoCM attention backend, single-token decode, fp8 KV — the closest
-RDNA4-ready baseline.
+All changes in this repo are additive to
+[andysalerno/r9700-serving](https://github.com/andysalerno/r9700-serving),
+which provided the base Docker build for `gfx1201`, AITER unified
+attention, MTP3 speculative decoding, and the default Qwen3.6-27B
+config. The deltas below are measured on the same 2× R9700 hardware.
 
-### Qwen3.6 27B (dense)
+### Qwen3.6 27B (dense) — downstream additions
 
-|                      | pp2048 (t/s) | tg32 (t/s) | delta |
-|:---------------------|-------------:|-----------:|------:|
-| upstream (triton attn, 05/24) | 2225 | 40.6 | — |
-| upstream (rocm attn, 06/06)   | 2341 | 53.4 | — |
-| + AITER unified attn           | 2750 | 81.9 | **+99% decode** |
-| + MTP4 + bf16 KV (current)    | 2965 | 83.9 | +10% prefill |
+| change                               | pp2048 (t/s) | tg32 (t/s) | delta |
+|:-------------------------------------|-------------:|-----------:|------:|
+| andysalerno baseline (MTP3, fp8 KV) |        ~2750 |      ~81.9 | — |
+| + MTP4 + bf16 KV                     |         2965 |       83.9 | +10% prefill |
 
-### Qwen3.6 35B-A3B (MoE)
+### Qwen3.6 35B-A3B (MoE) — all downstream additions
 
-|                                     | pp2048 (t/s) | tg32 (t/s) | delta |
-|:------------------------------------|-------------:|-----------:|------:|
-| upstream (no MTP, 08/01)            |       10075 |       82.9 | — |
-| + MTP4 + bf16 KV                    |       10162 |      172.5 | **+108% decode** |
-| + tuned fused_moe configs           |     ~11000  |    ~187   | +5-11% prefill & decode |
-| + NCCL channel tuning (112→4 ch)    |          —  |        —  | +12-19% tg128 |
+| change                               | pp2048 (t/s) | tg32 (t/s) | delta |
+|:-------------------------------------|-------------:|-----------:|------:|
+| andysalerno baseline (27B only)     |          n/a |        n/a | — |
+| + switch to 35B-A3B + MTP4 + bf16 KV |       10162 |      172.5 | MoE model added |
+| + NCCL channel tuning (112→4 ch)     |          —  |        —   | +12-19% tg128 |
+| + tuned fused_moe configs            |      ~11000 |      ~187  | +5-11% prefill & decode |
 
 ### What each change does
 
 | change | mechanism | impact |
 |:-------|:----------|:-------|
-| **AITER unified attention** | Custom AMD attention kernel via `ROCM_AITER_UNIFIED_ATTN` backend, pipelining QKV projection with flash attention | Doubles decode throughput on dense 27B; enables the MoE's high decode rates |
-| **MTP4 speculative decoding** | Drafts 4 tokens per forward pass (72.3% acceptance rate on 35B-A3B) | Doubles decode over single-token; +10% prefill on 27B |
-| **bf16 KV cache** | Patches AITER's TILE_SIZE from 64→32 to fit 64 KB LDS with bf16 KV (fp8 KV already fits); ~2× KV memory cost but zero perf regression | Better model quality; zero perf cost |
+| **35B-A3B model support** | Switched default model; added MTP4, `--max-num-batched-tokens 4096`, served-model-name aliasing | 3.4× faster prefill and 2× faster decode than the 27B; active-expert MOE trades capacity for speed |
+| **MTP4** | Increased draft tokens from 3→4 (72.3% acceptance rate on 35B-A3B) | +10% prefill on 27B; part of the MoE decode uplift |
+| **bf16 KV cache** | Patches AITER's TILE_SIZE from 64→32 to fit 64 KB LDS with bf16 KV (upstream used fp8 KV which already fit); ~2× KV memory cost but zero perf regression | Better model quality; zero perf cost |
 | **NCCL 4-channel** | Replaced auto-tuned 112-channel NCCL with pinned 4-channel config; `all_reduce_perf` confirmed 4 is the bandwidth sweet spot across all message sizes | +12-19% tg128 decode on 35B |
 | **tuned fused_moe configs** | Triton kernel tile-size sweep for the MoE gate+gemm kernel; deployed via `VLLM_TUNED_CONFIG_FOLDER` | +5-11% prefill and decode on 35B |
-| **W8A8 dense tuning** (abandoned) | Same approach for dense linear W8A8; only 4 tile shapes fit 64 KB LDS vs 24 for MoE | No gain; defaults already optimal |
+| **Docker support** | Added `just --set runtime docker` support alongside existing Podman; removed SELinux `:Z` labels for non-SELinux hosts | Zero performance difference; broader compatibility |
+| **comprehensive benchmarks** | Moved per-run tables to `benchmarks/`, built `BENCHMARKS.md` with depth sweeps, concurrency scaling, NCCL tuning, long context | Documented the performance envelope |
+| **W8A8 dense tuning** (abandoned) | Same approach as fused_moe for dense linear W8A8; only 4 tile shapes fit 64 KB LDS vs 24 for MoE | No gain; defaults already optimal |
 
 ## Benchmark
 
