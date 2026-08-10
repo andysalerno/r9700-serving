@@ -92,14 +92,6 @@ RUN mkdir flash-attention \
     && git -C flash-attention checkout --detach FETCH_HEAD \
     && git -C flash-attention submodule update --init --recursive --depth=1
 
-# COPY patches/flash-attention/ /patches/flash-attention/
-
-# RUN cd /src/flash-attention \
-#     && for patch in /patches/flash-attention/*.patch; do \
-#          [ -e "$patch" ] || continue; \
-#          git apply "$patch"; \
-#        done
-
 RUN --mount=type=cache,target=/root/.cache/pip \
     cd /src/flash-attention \
     && FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE \
@@ -165,14 +157,6 @@ RUN mkdir vllm \
     && git -C vllm init --quiet \
     && git -C vllm fetch --depth=1 --no-tags "${VLLM_REPO}" "${VLLM_REF}" \
     && git -C vllm checkout --detach FETCH_HEAD
-
-# COPY patches/vllm/ /patches/vllm/
-
-# RUN cd /src/vllm \
-#     && for patch in /patches/vllm/*.patch; do \
-#          [ -e "$patch" ] || continue; \
-#          git apply "$patch"; \
-#        done
 
 COPY --from=flash-attention-builder /wheels/ /dependency-wheels/
 COPY --from=aiter-builder /wheels/ /dependency-wheels/
@@ -244,6 +228,6 @@ ENV TOKENIZERS_PARALLELISM=false
 
 WORKDIR /workspace
 
-EXPOSE 8000
+EXPOSE 8180
 
 ENTRYPOINT ["vllm", "serve"]

@@ -9,10 +9,6 @@ x-vllm-full-cache-volumes: &vllm_full_cache_volumes
   - ${HOME}/.cache/comgr:/root/.cache/comgr
   - ${HOME}/.cache/tvm-ffi:/root/.cache/tvm-ffi
 
-x-llamacpp-cache-volumes: &llamacpp_cache_volumes
-  - ${HOME}/.cache/huggingface:/root/.cache/huggingface
-  - ${HOME}/.cache/llama.cpp:/root/.cache/llama.cpp
-
 x-amd-devices: &amd_devices
   devices:
     - /dev/kfd:/dev/kfd
@@ -28,8 +24,6 @@ x-amd-devices: &amd_devices
 services:
   vllm:
     <<: *amd_devices
-    # image: vllm/vllm-openai-rocm:v0.25.1
-    # image: docker.io/rocm/vllm:rocm7.14.0_rdna_ubuntu24.04_py3.14_pytorch_2.11.0_vllm_0.23.0
     image: localhost/vllm-fullbuild:latest
     build:
       context: .

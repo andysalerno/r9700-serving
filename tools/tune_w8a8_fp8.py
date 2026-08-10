@@ -39,7 +39,7 @@ def warm_one(payload):
         fpu.w8a8_triton_block_scaled_mm(A, B, As, Bs, BLOCK)
         torch.cuda.synchronize()
         return True
-    except Exception:
+    except (torch.cuda.OutOfMemoryError, RuntimeError, ValueError):
         return False
     finally:
         fpu.get_w8a8_block_fp8_configs = orig
@@ -63,7 +63,7 @@ def bench_one(payload):
             times.append(time.perf_counter() - t0)
         med = sorted(times)[len(times) // 2]
         return (M, cfg, med)
-    except Exception:
+    except (torch.cuda.OutOfMemoryError, RuntimeError, ValueError):
         return (M, cfg, None)
     finally:
         fpu.get_w8a8_block_fp8_configs = orig
@@ -155,8 +155,9 @@ def main():
                   f"{best['BLOCK_SIZE_K']} g{best['GROUP_SIZE_M']} "
                   f"w{best['num_warps']} s{best['num_stages']}: "
                   f"{s[0][0]*1e6:.0f} us", flush=True)
+        device_name = torch.cuda.get_device_name(0).replace(" ", "_")
         fname = (f"/tmp/w8a8_cfgs/N={N},K={K},device_name="
-                 f"AMD_Radeon_R9700,dtype=fp8_w8a8,block_shape=[128,128].json")
+                 f"{device_name},dtype=fp8_w8a8,block_shape=[128,128].json")
         with open(fname, "w") as f:
             json.dump({str(k): v for k, v in final.items()}, f, indent=4)
         print(f"  wrote {fname}", flush=True)
