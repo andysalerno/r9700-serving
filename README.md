@@ -163,8 +163,8 @@ config. The deltas below are measured on the same 2× R9700 hardware.
 
 | change                               | pp2048 (t/s) | tg32 (t/s) | delta |
 |:-------------------------------------|-------------:|-----------:|------:|
-| andysalerno baseline (MTP3, fp8 KV) |        ~2750 |      ~81.9 | — |
-| + MTP4 + bf16 KV                     |         2965 |       83.9 | +10% prefill |
+| andysalerno baseline (MTP3, fp8 KV) |         2750 |       81.9 | — |
+| + MTP4 + bf16 KV                     |         2993 |       80.8 | +9% prefill, decode flat |
 
 ### Qwen3.6 35B-A3B (MoE) — all downstream additions
 
@@ -180,7 +180,7 @@ config. The deltas below are measured on the same 2× R9700 hardware.
 | change | mechanism | impact |
 |:-------|:----------|:-------|
 | **35B-A3B model support** | Switched default model; added MTP4, `--max-num-batched-tokens 4096`, served-model-name aliasing | 3.4× faster prefill and 2× faster decode than the 27B; active-expert MOE trades capacity for speed |
-| **MTP4** | Increased draft tokens from 3→4 (72.3% acceptance rate on 35B-A3B) | +10% prefill on 27B; part of the MoE decode uplift |
+| **MTP4** | Increased draft tokens from 3→4 (72.3% acceptance rate on 35B-A3B) | +9% prefill on 27B; part of the MoE decode uplift |
 | **bf16 KV cache** | Patches AITER's TILE_SIZE from 64→32 to fit 64 KB LDS with bf16 KV (upstream used fp8 KV which already fit); ~2× KV memory cost but zero perf regression | Better model quality; zero perf cost |
 | **NCCL 4-channel** | Replaced auto-tuned 112-channel NCCL with pinned 4-channel config; `all_reduce_perf` confirmed 4 is the bandwidth sweet spot across all message sizes | +12-19% tg128 decode on 35B |
 | **tuned fused_moe configs** | Triton kernel tile-size sweep for the MoE gate+gemm kernel; deployed via `VLLM_TUNED_CONFIG_FOLDER` | +5-11% prefill and decode on 35B |
