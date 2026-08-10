@@ -119,14 +119,83 @@ The Hugging Face model cache is intentionally preserved.
 The older multi-profile, patched-image approach remains in [`archive/`](archive/)
 for reference.
 
+## Abandoned explorations
+
+**W8A8 Block FP8 dense-linear tuning** (2026-08-09). A micro-benchmark harness
+(`tools/tune_w8a8_fp8.py`) swept 49 viable block configurations (BM ∈ {16,32,64,128},
+BK=128, BN=128; νw ∈ {4,8}, stages ∈ {2,3}) across 5 projection shapes
+(N×K = 2048×2048, 2048×256, 512×2048, 4608×2048, 6144×2048) on GPU0 to select
+per-M optimal configs. The full 512-config space was filtered early — 90% of
+candidates overflow the R9700's 64 KB LDS and were removed. A persistent Triton
+cache on the host enabled fast re-runs, and the LDS filter avoided GPU hangs
+(ROCm timeout on oversize launches).
+
+Tuned configs were deployed via bind mount into the vLLM configs directory and
+A/B tested against stock defaults with `llama-benchy` (pp2048/tg32, Qwen3.6
+35B-A3B). **Result: no measurable gain** (11038 vs 11019 t/s pp2048, 187 vs 186
+t/s tg32 — within noise). The default configs already saturate the dense linear
+kernel. Why did the MoE `fused_moe` tuning succeed (+5-11%) while this one
+failed? The LDS limit hits the two kernels differently:
+
+| parameter           | dense W8A8    | MoE `fused_moe` |
+|:--------------------|:-------------|:----------------|
+| viable BM           | 16,32,64,128 | 16,32,64,128    |
+| viable BN           | **128 only** | 128, 256, 512   |
+| viable BK           | **128 only** | 128, 256        |
+| tile-shape combos   | 4×1×1 = 4    | 4×3×2 = 24      |
+
+The dense kernel has N ≥ 512 but the block limit cares about BN, not N —
+BN=256 overflows 64 KB LDS regardless of the matrix dimension. The MoE kernel's
+per-expert N of 256 or 512 keeps BN within range, giving it a much larger search
+space (BK=256 halves inner-loop trips, BN=256 halves thread blocks along N).
+Dense W8A8, with its four viable tile shapes, has nothing left to tune — the
+default configs already pick the optimal BM for each M. Abandoned.
+
+## Performance vs upstream
+
+How this fork's customizations compare against the upstream vLLM ROCm
+stack serving the same model on the same hardware (2× Radeon AI PRO R9700,
+`gfx1201`, TP=2). "Upstream" means unpatched vLLM main with the default
+RoCM attention backend, single-token decode, fp8 KV — the closest
+RDNA4-ready baseline.
+
+### Qwen3.6 27B (dense)
+
+|                      | pp2048 (t/s) | tg32 (t/s) | delta |
+|:---------------------|-------------:|-----------:|------:|
+| upstream (triton attn, 05/24) | 2225 | 40.6 | — |
+| upstream (rocm attn, 06/06)   | 2341 | 53.4 | — |
+| + AITER unified attn           | 2750 | 81.9 | **+99% decode** |
+| + MTP4 + bf16 KV (current)    | 2965 | 83.9 | +10% prefill |
+
+### Qwen3.6 35B-A3B (MoE)
+
+|                                     | pp2048 (t/s) | tg32 (t/s) | delta |
+|:------------------------------------|-------------:|-----------:|------:|
+| upstream (no MTP, 08/01)            |       10075 |       82.9 | — |
+| + MTP4 + bf16 KV                    |       10162 |      172.5 | **+108% decode** |
+| + tuned fused_moe configs           |     ~11000  |    ~187   | +5-11% prefill & decode |
+| + NCCL channel tuning (112→4 ch)    |          —  |        —  | +12-19% tg128 |
+
+### What each change does
+
+| change | mechanism | impact |
+|:-------|:----------|:-------|
+| **AITER unified attention** | Custom AMD attention kernel via `ROCM_AITER_UNIFIED_ATTN` backend, pipelining QKV projection with flash attention | Doubles decode throughput on dense 27B; enables the MoE's high decode rates |
+| **MTP4 speculative decoding** | Drafts 4 tokens per forward pass (72.3% acceptance rate on 35B-A3B) | Doubles decode over single-token; +10% prefill on 27B |
+| **bf16 KV cache** | Patches AITER's TILE_SIZE from 64→32 to fit 64 KB LDS with bf16 KV (fp8 KV already fits); ~2× KV memory cost but zero perf regression | Better model quality; zero perf cost |
+| **NCCL 4-channel** | Replaced auto-tuned 112-channel NCCL with pinned 4-channel config; `all_reduce_perf` confirmed 4 is the bandwidth sweet spot across all message sizes | +12-19% tg128 decode on 35B |
+| **tuned fused_moe configs** | Triton kernel tile-size sweep for the MoE gate+gemm kernel; deployed via `VLLM_TUNED_CONFIG_FOLDER` | +5-11% prefill and decode on 35B |
+| **W8A8 dense tuning** (abandoned) | Same approach for dense linear W8A8; only 4 tile shapes fit 64 KB LDS vs 24 for MoE | No gain; defaults already optimal |
+
 ## Benchmark
 
-Current per-model bests (single request, 2026-08-07, MTP4, bf16 KV):
+Current per-model bests (single request, 2026-08-09, MTP4, bf16 KV):
 
 | model                     | pp2048 t/s | ttfr (ms) | tg32 t/s | tg128 t/s |
 |:--------------------------|-----------:|----------:|---------:|----------:|
-| Qwen/Qwen3.6-27B-FP8      |     2965.4 |      692.6 |     83.9 |      70.9 |
-| Qwen/Qwen3.6-35B-A3B-FP8  |    10161.6 |      202.9 |    172.5 |     153.7 |
+| Qwen/Qwen3.6-27B-FP8      |  ~2965.4   |    ~692.6 |   ~83.9  |   ~70.9   |
+| Qwen/Qwen3.6-35B-A3B-FP8  |     ~11000 |      ~187 |     ~187 |     ~153   |
 
 The MoE 35B-A3B is ~2x faster on decode and ~3.4x faster on prefill/TTFT than
 the dense 27B. Full tables, tuning sweeps, and findings are in
