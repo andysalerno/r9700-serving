@@ -4,6 +4,12 @@ set positional-arguments
 # `just --set runtime podman <recipe>` or `RUNTIME=podman just <recipe>`.
 runtime := env_var_or_default('RUNTIME', 'docker')
 
+# Model profile: "qwen3.6-35b-a3b" (default) or "qwen3.6-27b".
+# Selects env/${model}.env for model-specific server arguments.
+# Override with `just --set model qwen3.6-27b <recipe>` or
+# `MODEL_PROFILE=qwen3.6-27b just <recipe>`.
+model := env_var_or_default('MODEL_PROFILE', 'qwen3.6-35b-a3b')
+
 _default:
     @just --list
 
@@ -29,16 +35,16 @@ clear-vllm-caches:
     done
 
 build:
-    {{runtime}} compose --env-file env/env.fullbuild build
+    @MODEL_PROFILE={{model}} {{runtime}} compose build
 
 rebuild:
-    {{runtime}} compose --env-file env/env.fullbuild build --no-cache
+    @MODEL_PROFILE={{model}} {{runtime}} compose build --no-cache
 
 up:
-    {{runtime}} compose up -d
+    @MODEL_PROFILE={{model}} {{runtime}} compose up -d
 
 logs:
-    {{runtime}} compose logs -f
+    @{{runtime}} compose logs -f
 
 down:
-    {{runtime}} compose down
+    @{{runtime}} compose down

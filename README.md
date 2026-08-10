@@ -17,7 +17,8 @@ OpenAI-compatible API.
 
 ```sh
 just build       # Build localhost/vllm-fullbuild:latest
-just up          # Start vLLM in the background
+just up          # Start vLLM in the background (default: 35B-A3B MoE)
+just --set model qwen3.6-27b up  # Switch to dense 27B model
 just logs        # Follow service logs
 just down        # Stop and remove containers
 ```
@@ -31,7 +32,7 @@ The vLLM OpenAI-compatible API is available at `http://localhost:8180/v1`.
 
 ## Configuration
 
-Build versions are pinned in `env/env.fullbuild`.
+Build versions are pinned in `.env`.
 
 | component    | version |
 |:-------------|:--------|
@@ -46,15 +47,18 @@ production 7.2.x line lacks RDNA4/`gfx1201` support. AITER `v0.1.19.post2` is
 the latest tagged release; vLLM is the 0.27 RC2 preview since `gfx1201`
 requires source builds.
 
-Runtime settings are in `compose.yaml`. The active model is
-`Qwen/Qwen3.6-35B-A3B-FP8` (MoE, 35B total / 3B active); the dense
-`Qwen/Qwen3.6-27B-FP8` is available as a commented alternative.
+The active model is `Qwen/Qwen3.6-35B-A3B-FP8` (MoE, 35B total / 3B active);
+switch to the dense `Qwen/Qwen3.6-27B-FP8` with `just --set model qwen3.6-27b`.
+Model selection is controlled by `MODEL_PROFILE` in `.env` — override inline
+with `MODEL_PROFILE=qwen3.6-27b just up`.
 
-Runtime environment is split across three files:
+Runtime environment is split across files:
 - `env/2xr9700.vllm.common` — two-GPU ROCm config (arch, NCCL, HSA)
 - `env/aiter-unified-attention.env` — enables AITER unified attention only
 - `env/aiter-moe-unified-attention.env` — also enables AITER MoE/FP8 kernels
   (not active: AITER's FP8 MoE backend does not yet support `gfx1201`)
+- `env/qwen3.6-35b-a3b.env` — MoE model config (path, tokenizer, MTP, tool use)
+- `env/qwen3.6-27b.env` — dense 27B model config
 
 Key tuning decisions:
 - **MTP4 speculative decoding**: 4 draft tokens per step (~72% acceptance on
