@@ -1,5 +1,6 @@
 x-vllm-full-cache-volumes: &vllm_full_cache_volumes
   - ./chat-templates/:/app/chat-templates
+  - ./fused_moe_configs/:/app/fused_moe_configs
   - ${HOME}/.cache/huggingface:/root/.cache/huggingface
   - ${HOME}/.cache/vllm:/root/.cache/vllm
   - ${HOME}/.cache/triton:/root/.cache/triton
@@ -60,6 +61,7 @@ services:
     environment:
       - GPU_MAX_HW_QUEUES=1
       - NCCL_P2P_DISABLE=1
+      - VLLM_TUNED_CONFIG_FOLDER=/app/fused_moe_configs
     command: >
       Qwen/Qwen3.6-35B-A3B-FP8
       --tokenizer Qwen/Qwen3.6-35B-A3B
