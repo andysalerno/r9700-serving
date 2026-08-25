@@ -12,3 +12,6 @@ GPU_ARCHS=gfx1201
 HIP_FORCE_DEV_KERNARG=1
 TORCH_BLAS_PREFER_HIPBLASLT=1
 NCCL_MIN_NCHANNELS=112
+# Opt out of vLLM's default-on anonymous usage telemetry (POSTs platform/model
+# data to https://stats.vllm.ai at startup + every 10 min).
+VLLM_NO_USAGE_STATS=1
