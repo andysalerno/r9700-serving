@@ -29,13 +29,14 @@ services:
   vllm:
     <<: *amd_devices
     # image: vllm/vllm-openai-rocm:v0.25.1
-    # image: docker.io/rocm/vllm:rocm7.14.0_rdna_ubuntu24.04_py3.14_pytorch_2.11.0_vllm_0.23.0
+    # image: docker.io/rocm/vllm:rocm10.0.0_ubuntu24.04_py3.14_pytorch_2.12.0_vllm_0.27.0
     image: localhost/vllm-fullbuild:latest
     build:
       context: .
       dockerfile: Dockerfile.fullbuild
       args:
         ROCM_IMAGE: ${ROCM_IMAGE}
+        TORCH_INDEX_URL: ${TORCH_INDEX_URL}
         GPU_ARCH: ${GPU_ARCH}
         MAX_JOBS: ${MAX_JOBS}
         TORCH_VERSION: ${TORCH_VERSION}
@@ -48,6 +49,12 @@ services:
     container_name: vllm
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10m
     networks:
       default:
         aliases:
@@ -66,12 +73,11 @@ services:
       --served-model-name qwen3.8-27b
       --limit-mm-per-prompt '{"image": 25, "audio": 0, "video": 0}'
       --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3
-      --default-chat-template-kwargs '{"preserve_thinking": true}'
+      --default-chat-template-kwargs '{"preserve_thinking": true, "reasoning_effort": "low"}'
       --max-model-len 128000
       --enable-prefix-caching
       --enable-prompt-tokens-details
       --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
-      --default-chat-template-kwargs '{"reasoning_effort": "low"}'
       --gpu-memory-utilization 0.93
       --host 0.0.0.0
       --port 8000

@@ -1,14 +1,16 @@
 # vLLM on Radeon AI PRO R9700
 
-Build and run vLLM from source for AMD Radeon AI PRO R9700 GPUs. The default
-configuration targets two R9700s (`gfx1201`) and serves a model through vLLM's
-OpenAI-compatible API, with Hugging Face Chat UI as a frontend.
+Build and run vLLM from source for AMD Radeon AI PRO R9700 GPUs on ROCm 10. The
+default configuration targets two R9700s (`gfx1201`) and serves a model through
+vLLM's OpenAI-compatible API, with Hugging Face Chat UI as a frontend.
 
 ## Requirements
 
 - Podman with `podman compose` (`docker compose` may work, but is untested)
 - [`just`](https://just.systems/)
 - One or more R9700 GPUs; the included configuration assumes two
+- A ROCm 10-compatible host AMDGPU driver; see AMD's
+  [ROCm compatibility matrix](https://rocm.docs.amd.com/en/docs-10.0.0/compatibility/compatibility-matrix.html)
 
 ## Build and run
 

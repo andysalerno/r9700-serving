@@ -29,10 +29,10 @@ build:
 
 
 up:
-    podman compose up -d
+    podman compose --env-file env/env.fullbuild up -d
 
 logs:
-    podman compose logs -f
+    podman compose --env-file env/env.fullbuild logs -f
 
 down:
-    podman compose down
+    podman compose --env-file env/env.fullbuild down
