@@ -1,4 +1,5 @@
 ARG ROCM_IMAGE
+ARG TORCH_INDEX_URL
 ARG GPU_ARCH=gfx1201
 ARG MAX_JOBS=16
 
@@ -9,6 +10,7 @@ ARG MAX_JOBS=16
 FROM ${ROCM_IMAGE} AS framework-base
 
 ARG GPU_ARCH
+ARG TORCH_INDEX_URL
 ARG TORCH_VERSION
 ARG TORCHVISION_VERSION
 ARG TORCHAUDIO_VERSION
@@ -58,11 +60,12 @@ RUN python3 -m venv /opt/venv \
 
 # AMD's ROCm PyTorch stack, compiled specifically for the target GPU.
 RUN --mount=type=cache,target=/root/.cache/pip \
-    : "${TORCH_VERSION:?set TORCH_VERSION to the pinned torch version}" \
+    : "${TORCH_INDEX_URL:?set TORCH_INDEX_URL to the AMD ROCm PyTorch wheel index}" \
+    && : "${TORCH_VERSION:?set TORCH_VERSION to the pinned torch version}" \
     && : "${TORCHVISION_VERSION:?set TORCHVISION_VERSION to the pinned torchvision version}" \
     && : "${TORCHAUDIO_VERSION:?set TORCHAUDIO_VERSION to the pinned torchaudio version}" \
     && python -m pip install \
-        --index-url https://repo.amd.com/rocm/whl-multi-arch/ \
+        --index-url "${TORCH_INDEX_URL}" \
         "torch[device-${GPU_ARCH}]==${TORCH_VERSION}" \
         "torchvision[device-${GPU_ARCH}]==${TORCHVISION_VERSION}" \
         "torchaudio==${TORCHAUDIO_VERSION}"
