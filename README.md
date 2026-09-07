@@ -42,6 +42,27 @@ Build versions and source revisions are pinned in `env/env.fullbuild`. The
 build uses `Dockerfile.fullbuild` to install the pinned PyTorch/ROCm stack and
 compile Flash Attention, AITER, and vLLM for `gfx1201`.
 
+The dependency pins were reviewed on 2026-09-06:
+
+| Component | Pin |
+|---|---|
+| ROCm | `10.0.0-full` (latest available ROCm 10 image) |
+| PyTorch / torchvision / torchaudio | `2.12.0` / `0.27.0` / `2.11.0`, all `+rocm10.0.0`, from [AMD's stable wheel index](https://stable.repo.amd.com/rocm/whl-next/) |
+| Triton | AMD's `3.8.0+git4cff872c.rocm10.0.0`, resolved by the PyTorch stack |
+| AITER | [`24a62b1c122f`](https://github.com/ROCm/aiter/commit/24a62b1c122f23645a19b9d8b0abd4750c59359b), including the newer `gfx1201` unified-attention configuration |
+| Flash Attention | [`a369df707e19`](https://github.com/ROCm/flash-attention/commit/a369df707e1980fb328abcc1733e3457ec10155f), from ROCm's `tridao` branch using the Triton AMD backend, not the CK-only release tags |
+| vLLM | Exact [`v0.28.0` source](https://github.com/vllm-project/vllm/commit/2cf0a6915ce544dc493a0990f2ea38d81601128a), unchanged |
+
+The existing PyTorch stack is deliberately retained: vLLM v0.28.0's
+[ROCm source-build recipe](https://github.com/vllm-project/vllm/blob/v0.28.0/docker/Dockerfile.rocm_base)
+uses the PyTorch 2.12 release line. AMD also publishes PyTorch 2.13,
+torchvision 0.28, and torchaudio 2.11.0.2 wheels, but a successful source build
+alone would not establish their inference compatibility with this vLLM release.
+
+`VLLM_VERSION=0.28.1.dev0` is an intentional package-version override; it does
+not select newer vLLM source. Keep it separate from the source pin when updating
+dependencies. The historical configurations under `archive/` are not updated.
+
 Runtime settings are in `compose.yaml`, including the model, vLLM command-line
 arguments, GPU count, ports, and mounted caches. The default model is
 `Qwen/Qwen3.6-27B-FP8` with tensor parallelism set to two GPUs.
