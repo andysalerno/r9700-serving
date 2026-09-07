@@ -34,6 +34,10 @@ The vLLM OpenAI-compatible API is available at
 `http://localhost:8000/v1`, and Chat UI is available at
 `http://localhost:8001`.
 
+Chat UI starts only after vLLM's healthcheck passes because it fetches the model
+list during startup. `just up` therefore waits for vLLM to finish loading and
+warming up before starting Chat UI; a cold start can take several minutes.
+
 Run `just --list` to see all available recipes.
 
 ## Configuration

@@ -95,6 +95,9 @@ services:
   chatui:
     image: ghcr.io/huggingface/chat-ui-db:latest
     container_name: chatui
+    depends_on:
+      vllm:
+        condition: service_healthy
     ports:
       - "8001:3000"
     environment:
