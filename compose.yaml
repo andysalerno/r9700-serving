@@ -28,9 +28,8 @@ x-amd-devices: &amd_devices
 services:
   vllm:
     <<: *amd_devices
-    # image: vllm/vllm-openai-rocm:v0.25.1
-    # image: docker.io/rocm/vllm:rocm10.0.0_ubuntu24.04_py3.14_pytorch_2.12.0_vllm_0.27.0
-    image: localhost/vllm-fullbuild:latest
+    image: localhost/vllm-fullbuild:${VLLM_VERSION:?set VLLM_VERSION in env/env.fullbuild}
+    pull_policy: never
     build:
       context: .
       dockerfile: Dockerfile.fullbuild
@@ -42,6 +41,7 @@ services:
         TORCH_VERSION: ${TORCH_VERSION}
         TORCHVISION_VERSION: ${TORCHVISION_VERSION}
         TORCHAUDIO_VERSION: ${TORCHAUDIO_VERSION}
+        TRITON_VERSION: ${TRITON_VERSION}
         VLLM_REF: ${VLLM_REF}
         VLLM_VERSION: ${VLLM_VERSION}
         AITER_REF: ${AITER_REF}
@@ -93,7 +93,7 @@ services:
   ##########
 
   chatui:
-    image: ghcr.io/huggingface/chat-ui-db:latest
+    image: ${CHATUI_IMAGE:?set CHATUI_IMAGE in env/env.fullbuild}
     container_name: chatui
     depends_on:
       vllm:

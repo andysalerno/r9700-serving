@@ -14,6 +14,7 @@ ARG TORCH_INDEX_URL
 ARG TORCH_VERSION
 ARG TORCHVISION_VERSION
 ARG TORCHAUDIO_VERSION
+ARG TRITON_VERSION
 ENV GPU_ARCH=${GPU_ARCH}
 ENV ROCM_PATH=/opt/rocm
 ENV PATH=/opt/venv/bin:/opt/rocm/bin:/opt/rocm/llvm/bin:${PATH}
@@ -23,6 +24,7 @@ ENV PYTORCH_ROCM_ARCH=${GPU_ARCH}
 ENV CMAKE_HIP_ARCHITECTURES=${GPU_ARCH}
 ENV AMDGPU_TARGETS=${GPU_ARCH}
 ENV GPU_TARGETS=${GPU_ARCH}
+ENV AITER_USE_SYSTEM_TRITON=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
@@ -64,11 +66,19 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     && : "${TORCH_VERSION:?set TORCH_VERSION to the pinned torch version}" \
     && : "${TORCHVISION_VERSION:?set TORCHVISION_VERSION to the pinned torchvision version}" \
     && : "${TORCHAUDIO_VERSION:?set TORCHAUDIO_VERSION to the pinned torchaudio version}" \
+    && : "${TRITON_VERSION:?set TRITON_VERSION to the pinned AMD Triton version}" \
     && python -m pip install \
         --index-url "${TORCH_INDEX_URL}" \
         "torch[device-${GPU_ARCH}]==${TORCH_VERSION}" \
         "torchvision[device-${GPU_ARCH}]==${TORCHVISION_VERSION}" \
-        "torchaudio==${TORCHAUDIO_VERSION}"
+        "torchaudio==${TORCHAUDIO_VERSION}" \
+        "triton==${TRITON_VERSION}" \
+    && printf 'torch==%s\ntorchvision==%s\ntorchaudio==%s\ntriton==%s\n' \
+        "${TORCH_VERSION}" "${TORCHVISION_VERSION}" "${TORCHAUDIO_VERSION}" "${TRITON_VERSION}" \
+        > /opt/torch-constraints.txt
+
+# Nested AITER/Flash Attention installers must also retain the AMD wheel stack.
+ENV PIP_CONSTRAINT=/opt/torch-constraints.txt
 
 RUN python - <<'PY'
 import torch
@@ -84,6 +94,7 @@ FROM framework-base AS flash-attention-builder
 
 ARG FLASH_ATTN_REPO=https://github.com/ROCm/flash-attention.git
 ARG FLASH_ATTN_REF
+ARG AITER_REF
 ARG MAX_JOBS
 
 WORKDIR /src
@@ -94,6 +105,13 @@ RUN mkdir flash-attention \
        "${FLASH_ATTN_REPO}" "${FLASH_ATTN_REF}" \
     && git -C flash-attention checkout --detach FETCH_HEAD \
     && git -C flash-attention submodule update --init --recursive --depth=1
+
+# Flash Attention installs its bundled AITER even with pip --no-deps.
+# Stage the shared pin so setup.py's submodule update also retains it.
+RUN git -C flash-attention/third_party/aiter fetch --depth=1 origin "${AITER_REF}" \
+    && git -C flash-attention/third_party/aiter checkout --detach FETCH_HEAD \
+    && git -C flash-attention/third_party/aiter submodule update --init --recursive --depth=1 \
+    && git -C flash-attention add third_party/aiter
 
 # COPY patches/flash-attention/ /patches/flash-attention/
 
@@ -189,16 +207,23 @@ RUN cd /src/vllm \
     && python use_existing_torch.py --prefix \
     && python -m pip install -r requirements/rocm.txt
 
-RUN cd /src/vllm \
-    && ./tools/install_protoc.sh \
-    && bash build_rust.sh
+RUN --mount=type=cache,target=/root/.cache/pip \
+    cd /src/vllm \
+    && export PATH="$HOME/.cargo/bin:$PATH" \
+    && python -m pip install -r requirements/build/rust.txt "setuptools<80" \
+    && SETUPTOOLS_SCM_PRETEND_VERSION="${VLLM_VERSION}" \
+       CARGO_BUILD_JOBS=4 \
+       bash build_rust.sh \
+    && test -x vllm/vllm-rs \
+    && python -c 'from pathlib import Path; assert list(Path("vllm").glob("_rust_tool_parser*.so")), "missing Rust tool parser"'
 
 RUN --mount=type=cache,target=/root/.cache/ccache \
     --mount=type=cache,target=/root/.cache/pip \
     cd /src/vllm \
     && : "${VLLM_VERSION:?set VLLM_VERSION to the release or development version}" \
     && VLLM_COMMIT="$(git rev-parse --short=12 HEAD)" \
-    && ROCM_IMAGE_TAG="${ROCM_IMAGE##*:}" \
+    && ROCM_IMAGE_TAG="${ROCM_IMAGE%@*}" \
+    && ROCM_IMAGE_TAG="${ROCM_IMAGE_TAG##*:}" \
     && ROCM_VERSION="${ROCM_IMAGE_TAG%%-*}" \
     && ROCM_MAJOR="${ROCM_VERSION%%.*}" \
     && ROCM_MINOR_PATCH="${ROCM_VERSION#*.}" \
@@ -232,6 +257,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     python -m pip install --no-deps /opt/rocm/share/amd_smi \
     && python -m pip install -r /install/requirements/rocm.txt \
     && python -m pip install /install/*.whl \
+    && python -m pip check \
     && rm -rf /install
 
 ENV FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
