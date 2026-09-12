@@ -110,7 +110,11 @@ for reference.
 
 ## Benchmark
 
-The versions of VLLM/ROCm/AITER pinned in the current commit (the one adding this benchmark to the readme) saw these speeds:
+The latest results are the [2026-09-11 Qwen3.8-27B-FP8 benchmark](benchmarks/09_11_fullbuild_aiter_vllm29.md),
+including the repository revision and running vLLM 0.29.0 service configuration.
+
+The historical [2026-07-22 Qwen3.6-27B-FP8 results](benchmarks/07_22_fullbuild_aiter.md)
+are preserved below:
 
 (note that this is a single request speed, no concurrent requests)
 
