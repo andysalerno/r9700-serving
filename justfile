@@ -29,7 +29,7 @@ build:
 
 
 up:
-    podman compose --env-file env/env.fullbuild up -d
+    podman compose --env-file env/env.fullbuild up --build -d --wait --wait-timeout 1800
 
 logs:
     podman compose --env-file env/env.fullbuild logs -f

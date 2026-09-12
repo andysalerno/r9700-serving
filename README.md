@@ -17,10 +17,10 @@ vLLM's OpenAI-compatible API, with Hugging Face Chat UI as a frontend.
 The `justfile` provides the complete workflow:
 
 ```sh
-# Build localhost/vllm-fullbuild:latest.
+# Optionally build localhost/vllm-fullbuild:0.29.0 ahead of time.
 just build
 
-# Start vLLM and Chat UI in the background.
+# Build the pinned image, start vLLM and Chat UI, and wait for readiness.
 just up
 
 # Follow service logs.
@@ -34,9 +34,15 @@ The vLLM OpenAI-compatible API is available at
 `http://localhost:8000/v1`, and Chat UI is available at
 `http://localhost:8001`.
 
+`just up` always builds with the current pins (reusing unchanged build layers)
+instead of reusing an old `latest` image. The custom vLLM image is tagged with
+`VLLM_VERSION` and is never pulled from a registry.
+
 Chat UI starts only after vLLM's healthcheck passes because it fetches the model
-list during startup. `just up` therefore waits for vLLM to finish loading and
-warming up before starting Chat UI; a cold start can take several minutes.
+list during startup. `just up` waits for vLLM to finish loading and warming up
+before starting Chat UI, then waits for both services to be running, with a
+30-minute readiness timeout. Image building happens before that timeout;
+a cold build or startup can take several minutes.
 
 Run `just --list` to see all available recipes.
 
@@ -46,30 +52,39 @@ Build versions and source revisions are pinned in `env/env.fullbuild`. The
 build uses `Dockerfile.fullbuild` to install the pinned PyTorch/ROCm stack and
 compile Flash Attention, AITER, and vLLM for `gfx1201`.
 
-The dependency pins were reviewed on 2026-09-06:
+The dependency pins were reviewed on 2026-09-11:
 
 | Component | Pin |
 |---|---|
-| ROCm | `10.0.0-full` (latest available ROCm 10 image) |
-| PyTorch / torchvision / torchaudio | `2.12.0` / `0.27.0` / `2.11.0`, all `+rocm10.0.0`, from [AMD's stable wheel index](https://stable.repo.amd.com/rocm/whl-next/) |
-| Triton | AMD's `3.8.0+git4cff872c.rocm10.0.0`, resolved by the PyTorch stack |
-| AITER | [`24a62b1c122f`](https://github.com/ROCm/aiter/commit/24a62b1c122f23645a19b9d8b0abd4750c59359b), including the newer `gfx1201` unified-attention configuration |
+| ROCm | `10.0.0-full` (latest available ROCm 10 image), pinned by digest `sha256:a90cf047f615abe70fbef83c64def0a2d549ef37a39c8ea545430aba4981b374` |
+| PyTorch / torchvision / torchaudio | `2.13.0` / `0.28.0` / `2.11.0.2`, all `+rocm10.0.0`, from [AMD's stable wheel index](https://stable.repo.amd.com/rocm/whl-next/) |
+| Triton | AMD's `3.8.0+git4cff872c.rocm10.0.0`, explicitly pinned to the build required by PyTorch |
+| AITER | [`f361bd39ba41`](https://github.com/ROCm/aiter/commit/f361bd39ba4196ce29391c628d4ebf72e7929ab8), latest `main` revision |
 | Flash Attention | [`a369df707e19`](https://github.com/ROCm/flash-attention/commit/a369df707e1980fb328abcc1733e3457ec10155f), from ROCm's `tridao` branch using the Triton AMD backend, not the CK-only release tags |
-| vLLM | Exact [`v0.28.0` source](https://github.com/vllm-project/vllm/commit/2cf0a6915ce544dc493a0990f2ea38d81601128a), unchanged |
+| vLLM | Exact [`v0.29.0` source](https://github.com/vllm-project/vllm/commit/98dff2a81d747d1dba01a47f939f48c3526d4206), packaged as `0.29.0+rocm100.gfx1201` |
+| Chat UI | Latest `ghcr.io/huggingface/chat-ui-db` image, pinned by digest `sha256:e5cf682821859f5141905d0b1da515f75add6e54e98befbdcf7b00120ae63167` |
 
-The existing PyTorch stack is deliberately retained: vLLM v0.28.0's
-[ROCm source-build recipe](https://github.com/vllm-project/vllm/blob/v0.28.0/docker/Dockerfile.rocm_base)
-uses the PyTorch 2.12 release line. AMD also publishes PyTorch 2.13,
-torchvision 0.28, and torchaudio 2.11.0.2 wheels, but a successful source build
-alone would not establish their inference compatibility with this vLLM release.
+PyTorch 2.13 matches vLLM v0.29.0's
+[`CMakeLists.txt`](https://github.com/vllm-project/vllm/blob/v0.29.0/CMakeLists.txt)
+and [`pyproject.toml`](https://github.com/vllm-project/vllm/blob/v0.29.0/pyproject.toml).
+Its ROCm Dockerfile still defaults to the older 2.12 line; this build uses the
+source's expected version and AMD's matching `gfx1201` device wheels instead.
+Pip constraints retain the pinned PyTorch/Triton stack throughout the build and
+runtime installation, including nested Flash Attention/AITER installers.
+`AITER_USE_SYSTEM_TRITON=1` prevents those installers from replacing AMD Triton.
+Flash Attention's bundled AITER is moved to `AITER_REF` before building, so its
+nested installer does not pull an older AITER with unavailable dependencies.
+The native Rust components use vLLM's pinned toolchain and `build_rust.sh`;
+v0.29.0 generates protobuf code in Rust and no longer uses `install_protoc.sh`.
 
-`VLLM_VERSION=0.28.1.dev0` is an intentional package-version override; it does
-not select newer vLLM source. Keep it separate from the source pin when updating
-dependencies. The historical configurations under `archive/` are not updated.
+`VLLM_REF` selects the source; `VLLM_VERSION` sets the package version and local
+image tag. Keep them aligned when upgrading releases. The historical
+configurations under `archive/` are not updated.
 
 Runtime settings are in `compose.yaml`, including the model, vLLM command-line
 arguments, GPU count, ports, and mounted caches. The default model is
-`Qwen/Qwen3.6-27B-FP8` with tensor parallelism set to two GPUs.
+`Qwen/Qwen3.8-27B-FP8` with tensor parallelism set to two GPUs, FP8 KV cache,
+AITER unified attention, and three-token MTP speculative decoding.
 
 The runtime environment is split between:
 
@@ -95,7 +110,11 @@ for reference.
 
 ## Benchmark
 
-The versions of VLLM/ROCm/AITER pinned in the current commit (the one adding this benchmark to the readme) saw these speeds:
+The latest results are the [2026-09-11 Qwen3.8-27B-FP8 benchmark](benchmarks/09_11_fullbuild_aiter_vllm29.md),
+including the repository revision and running vLLM 0.29.0 service configuration.
+
+The historical [2026-07-22 Qwen3.6-27B-FP8 results](benchmarks/07_22_fullbuild_aiter.md)
+are preserved below:
 
 (note that this is a single request speed, no concurrent requests)
 
