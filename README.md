@@ -52,21 +52,25 @@ Build versions and source revisions are pinned in `env/env.fullbuild`. The
 build uses `Dockerfile.fullbuild` to install the pinned PyTorch/ROCm stack and
 compile Flash Attention, AITER, and vLLM for `gfx1201`.
 
-The dependency pins were reviewed on 2026-09-11:
+The dependency pins were reviewed on 2026-09-16:
 
 | Component | Pin |
 |---|---|
 | ROCm | `10.0.0-full` (latest available ROCm 10 image), pinned by digest `sha256:a90cf047f615abe70fbef83c64def0a2d549ef37a39c8ea545430aba4981b374` |
 | PyTorch / torchvision / torchaudio | `2.13.0` / `0.28.0` / `2.11.0.2`, all `+rocm10.0.0`, from [AMD's stable wheel index](https://stable.repo.amd.com/rocm/whl-next/) |
 | Triton | AMD's `3.8.0+git4cff872c.rocm10.0.0`, explicitly pinned to the build required by PyTorch |
-| AITER | [`f361bd39ba41`](https://github.com/ROCm/aiter/commit/f361bd39ba4196ce29391c628d4ebf72e7929ab8), latest `main` revision |
+| AITER | [`a84bd368cfe0`](https://github.com/ROCm/aiter/commit/a84bd368cfe014718c6e8c59b51c841aa2e2ab72), latest compatible `main` revision |
 | Flash Attention | [`a369df707e19`](https://github.com/ROCm/flash-attention/commit/a369df707e1980fb328abcc1733e3457ec10155f), from ROCm's `tridao` branch using the Triton AMD backend, not the CK-only release tags |
 | vLLM | Exact [`v0.29.0` source](https://github.com/vllm-project/vllm/commit/98dff2a81d747d1dba01a47f939f48c3526d4206), packaged as `0.29.0+rocm100.gfx1201` |
-| Chat UI | Latest `ghcr.io/huggingface/chat-ui-db` image, pinned by digest `sha256:e5cf682821859f5141905d0b1da515f75add6e54e98befbdcf7b00120ae63167` |
+| Chat UI | Latest `ghcr.io/huggingface/chat-ui-db` image, pinned by digest `sha256:36ebe494d7cc5c703274575ee4bb056e541f3395aa3bb716d60906a18952066c` |
 
 PyTorch 2.13 matches vLLM v0.29.0's
 [`CMakeLists.txt`](https://github.com/vllm-project/vllm/blob/v0.29.0/CMakeLists.txt)
 and [`pyproject.toml`](https://github.com/vllm-project/vllm/blob/v0.29.0/pyproject.toml).
+It is therefore intentionally held rather than treated as a rolling
+dependency. Torchvision, torchaudio, and Triton are the newest matching ROCm
+10.0.0 wheels published by AMD and must move with that PyTorch/ROCm wheel set,
+not independently.
 Its ROCm Dockerfile still defaults to the older 2.12 line; this build uses the
 source's expected version and AMD's matching `gfx1201` device wheels instead.
 Pip constraints retain the pinned PyTorch/Triton stack throughout the build and
@@ -74,6 +78,9 @@ runtime installation, including nested Flash Attention/AITER installers.
 `AITER_USE_SYSTEM_TRITON=1` prevents those installers from replacing AMD Triton.
 Flash Attention's bundled AITER is moved to `AITER_REF` before building, so its
 nested installer does not pull an older AITER with unavailable dependencies.
+The AITER pin may move independently when its packaging requirements remain
+compatible with this fixed framework stack. The current revision adds an RDNA
+unified-attention LDS overflow guard for `gfx1201` and a Triton 3.8 rmsnorm fix.
 The native Rust components use vLLM's pinned toolchain and `build_rust.sh`;
 v0.29.0 generates protobuf code in Rust and no longer uses `install_protoc.sh`.
 
