@@ -271,6 +271,11 @@ ENV TORCH_BLAS_PREFER_HIPBLASLT=1
 ENV PYTORCH_NVML_BASED_CUDA_CHECK=1
 ENV TOKENIZERS_PARALLELISM=false
 
+# vLLM 0.30.0 preloads libtorch_cpu.so before torch, duplicating LLVM option
+# registration on this ROCm stack. Import torch first in every Python process.
+COPY runtime/sitecustomize.py /opt/rocm-python/sitecustomize.py
+ENV PYTHONPATH=/opt/rocm-python
+
 WORKDIR /workspace
 
 EXPOSE 8000
