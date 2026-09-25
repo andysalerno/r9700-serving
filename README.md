@@ -144,8 +144,10 @@ for reference.
 
 ## Benchmark
 
-The latest results are the [2026-09-11 Qwen3.8-27B-FP8 benchmark](benchmarks/09_11_fullbuild_aiter_vllm29.md),
-including the repository revision and running vLLM 0.29.0 service configuration.
+The latest results are the [2026-09-24 Qwen3.8-27B-FP8 benchmark](benchmarks/09_24_fullbuild_aiter_vllm30.md),
+including the repository revision and running vLLM 0.30.0 service configuration.
+The [2026-09-11 vLLM 0.29.0 results](benchmarks/09_11_fullbuild_aiter_vllm29.md)
+are preserved for comparison.
 
 The historical [2026-07-22 Qwen3.6-27B-FP8 results](benchmarks/07_22_fullbuild_aiter.md)
 are preserved below:
