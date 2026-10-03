@@ -52,17 +52,17 @@ Build versions and source revisions are pinned in `env/env.fullbuild`. The
 build uses `Dockerfile.fullbuild` to install the pinned PyTorch/ROCm stack and
 compile Flash Attention, AITER, and vLLM for `gfx1201`.
 
-The dependency pins were reviewed on 2026-09-24:
+The dependency pins were reviewed on 2026-10-01:
 
 | Component | Pin |
 |---|---|
 | ROCm | `10.0.0-full` (latest available ROCm 10 image), pinned by digest `sha256:a90cf047f615abe70fbef83c64def0a2d549ef37a39c8ea545430aba4981b374` |
 | PyTorch / torchvision / torchaudio | `2.13.0` / `0.28.0` / `2.11.0.2`, all `+rocm10.0.0`, from [AMD's stable wheel index](https://stable.repo.amd.com/rocm/whl-next/) |
 | Triton | AMD's `3.8.0+git4cff872c.rocm10.0.0`, explicitly pinned to the build required by PyTorch |
-| AITER | [`v0.1.22.post1`](https://github.com/ROCm/aiter/commit/b4d9154d125e09efbe098d986e40fea3549c1244), pinned to the release commit |
+| AITER | [`v0.1.24.post1`](https://github.com/ROCm/aiter/commit/04896172e283ecc389f0dfff6479c3379ed63fa1), the tip of the `release/v0.1.24` line |
 | Flash Attention | [`a369df707e19`](https://github.com/ROCm/flash-attention/commit/a369df707e1980fb328abcc1733e3457ec10155f), from ROCm's `tridao` branch using the Triton AMD backend, not the CK-only release tags |
 | vLLM | Exact [`v0.30.0` source](https://github.com/vllm-project/vllm/commit/ced6857afa0ea7b2e3f0846a62e1394e90f15607), packaged as `0.30.0+rocm100.gfx1201` |
-| Chat UI | Latest `ghcr.io/huggingface/chat-ui-db` image, pinned by digest `sha256:36ebe494d7cc5c703274575ee4bb056e541f3395aa3bb716d60906a18952066c` |
+| Chat UI | Latest `ghcr.io/huggingface/chat-ui-db` image, pinned by digest `sha256:eed356380f530e7c1c3c7657f2b89a0e3afcd725c57c2e77a2b2e5de9dad62fe` |
 
 ### Updating the fullbuild pins
 
@@ -86,8 +86,11 @@ The versions in `env/env.fullbuild` form two different kinds of constraints:
   revisions need not match vLLM's ROCm Dockerfile pins exactly, but newer
   revisions are *not* guaranteed compatible: check their build requirements
   and GPU support, then rebuild the image and test inference before adopting
-  them. The Flash Attention `tridao` branch has not moved since its current
-  pin. Keep its bundled AITER submodule on the same `AITER_REF` as the
+  them. AITER tracks its `release/*` branches rather than `main`; the current
+  pin is the `release/v0.1.24` tip, which is tagged `v0.1.24.post1` but has no
+  published GitHub release, so it carries less upstream release validation than
+  `v0.1.24` itself. The Flash Attention `tridao` branch has not moved since its
+  current pin. Keep its bundled AITER submodule on the same `AITER_REF` as the
   separately built wheel. vLLM's [ROCm runtime requirements](https://github.com/vllm-project/vllm/blob/v0.30.0/requirements/rocm.txt)
   are copied from the selected vLLM source and installed at build time;
   preserve their own exact pins and paired-package constraints rather than
