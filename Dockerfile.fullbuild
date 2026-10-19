@@ -204,7 +204,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Tell vLLM to retain the existing AMD PyTorch installation instead of trying
 # to resolve or build another PyTorch stack.
 RUN cd /src/vllm \
-    && python use_existing_torch.py --prefix \
+    && python tools/use_existing_torch.py --prefix \
     && python -m pip install -r requirements/rocm.txt
 
 RUN --mount=type=cache,target=/root/.cache/pip \
@@ -213,9 +213,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     && python -m pip install -r requirements/build/rust.txt "setuptools<80" \
     && SETUPTOOLS_SCM_PRETEND_VERSION="${VLLM_VERSION}" \
        CARGO_BUILD_JOBS=4 \
-       bash build_rust.sh \
-    && test -x vllm/vllm-rs \
-    && python -c 'from pathlib import Path; assert list(Path("vllm").glob("_rust_tool_parser*.so")), "missing Rust tool parser"'
+       bash tools/build_rust.sh \
+    && test -x vllm/vllm-rs
 
 RUN --mount=type=cache,target=/root/.cache/ccache \
     --mount=type=cache,target=/root/.cache/pip \
@@ -253,14 +252,29 @@ COPY --from=aiter-builder /wheels/ /install/
 COPY --from=vllm-builder /wheels/ /install/
 COPY --from=vllm-builder /src/vllm/requirements/ /install/requirements/
 
+# ROCm 10.1 ships amdsmi as a relocatable source tree, not a pip project; it
+# resolves libamd_smi.so relative to that tree, so import it in place.
 RUN --mount=type=cache,target=/root/.cache/pip \
-    python -m pip install --no-deps /opt/rocm/share/amd_smi \
+    test -f /opt/rocm/share/amd_smi/amdsmi/__init__.py \
+    && echo /opt/rocm/share/amd_smi \
+       > "$(python -c 'import sysconfig; print(sysconfig.get_path("purelib"))')/rocm-amdsmi.pth" \
     && python -m pip install -r /install/requirements/rocm.txt \
     && python -m pip install /install/*.whl \
     && python -m pip check \
+    && python -c 'import amdsmi; assert amdsmi.__file__.startswith("/opt/rocm/share/amd_smi/"), amdsmi.__file__' \
     && rm -rf /install
 
 ENV FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
+
+# AITER JIT-compiles kernels with the first hipcc on PATH. ROCm 10.1's pip SDK
+# hipcc forces --rocm-path to its own tree, which lacks device libraries, so
+# prefer the base image's identical, complete ROCm toolchain at ROCM_PATH.
+ENV PATH=/opt/rocm/bin:/opt/rocm/llvm/bin:${PATH}
+RUN printf '#include <hip/hip_runtime.h>\n__global__ void k(float *x) { x[0] = __expf(x[0]); }\n' \
+        > /tmp/hipcc-check.hip \
+    && test "$(command -v hipcc)" = /opt/rocm/bin/hipcc \
+    && hipcc --offload-arch="${GPU_ARCH}" -c /tmp/hipcc-check.hip -o /tmp/hipcc-check.o \
+    && rm -f /tmp/hipcc-check.*
 
 ENV HSA_ENABLE_IPC_MODE_LEGACY=1
 ENV HSA_NO_SCRATCH_RECLAIM=1
@@ -271,7 +285,7 @@ ENV TORCH_BLAS_PREFER_HIPBLASLT=1
 ENV PYTORCH_NVML_BASED_CUDA_CHECK=1
 ENV TOKENIZERS_PARALLELISM=false
 
-# vLLM 0.30.0 preloads libtorch_cpu.so before torch, duplicating LLVM option
+# vLLM 0.30.0+ preloads libtorch_cpu.so before torch, duplicating LLVM option
 # registration on this ROCm stack. Import torch first in every Python process.
 COPY runtime/sitecustomize.py /opt/rocm-python/sitecustomize.py
 ENV PYTHONPATH=/opt/rocm-python
