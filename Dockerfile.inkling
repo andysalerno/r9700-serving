@@ -1,0 +1,104 @@
+ARG ROCM_IMAGE
+
+# -----------------------------------------------------------------------------
+# llama.cpp for Inkling 2 Mini on gfx1201 (HIP), built from pinned sources
+# -----------------------------------------------------------------------------
+#
+# Upstream llama.cpp at LLAMA_CPP_BASE_COMMIT, plus the pinned PR commits in
+# inkling/llama-cpp-pins.txt merged in order. Pure add/add conflicts between
+# pins are resolved with Unsloth's additive_merge.py, as their prebuilt CI does;
+# any other conflict fails the build. The merged tree must equal LLAMA_CPP_TREE.
+
+FROM ${ROCM_IMAGE} AS llama-cpp-builder
+
+ARG LLAMA_CPP_REPO=https://github.com/ggml-org/llama.cpp.git
+ARG LLAMA_CPP_BASE_COMMIT
+ARG LLAMA_CPP_TREE
+ARG UNSLOTH_LLAMA_CPP_COMMIT
+ARG ADDITIVE_MERGE_SHA256
+ARG GPU_ARCH
+ARG MAX_JOBS
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        ccache \
+        cmake \
+        curl \
+        git \
+        ninja-build \
+        python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY inkling/llama-cpp-pins.txt /pins.txt
+
+WORKDIR /src
+
+RUN : "${LLAMA_CPP_BASE_COMMIT:?set LLAMA_CPP_BASE_COMMIT}" \
+    && : "${LLAMA_CPP_TREE:?set LLAMA_CPP_TREE}" \
+    && : "${UNSLOTH_LLAMA_CPP_COMMIT:?set UNSLOTH_LLAMA_CPP_COMMIT}" \
+    && : "${ADDITIVE_MERGE_SHA256:?set ADDITIVE_MERGE_SHA256}" \
+    && curl -fsSL --retry 5 -o /additive_merge.py \
+       "https://raw.githubusercontent.com/unslothai/llama.cpp/${UNSLOTH_LLAMA_CPP_COMMIT}/scripts/unsloth/additive_merge.py" \
+    && echo "${ADDITIVE_MERGE_SHA256}  /additive_merge.py" | sha256sum -c - \
+    && git init --quiet llama.cpp \
+    && cd llama.cpp \
+    && git config user.name inkling-build \
+    && git config user.email inkling-build@localhost \
+    && git config merge.conflictStyle diff3 \
+    && git fetch --quiet --no-tags "${LLAMA_CPP_REPO}" "${LLAMA_CPP_BASE_COMMIT}" \
+    && git checkout --quiet --detach FETCH_HEAD \
+    && grep '^https://' /pins.txt | while read -r url; do \
+         repo="$(echo "$url" | cut -d/ -f4-5)"; \
+         sha="${url##*/}"; \
+         git fetch --quiet --no-tags "https://github.com/${repo}.git" "$sha" 2>/dev/null \
+           || git fetch --quiet --no-tags https://github.com/unslothai/llama.cpp.git "refs/pins/${sha}"; \
+         if ! git merge --quiet --no-ff --no-edit -m "Merge ${url}" "$sha" >/dev/null 2>&1; then \
+           python3 /additive_merge.py \
+             && [ -z "$(git diff --name-only --diff-filter=U)" ] \
+             && git commit --quiet --no-edit \
+             || { echo "pin does not merge: ${url}" >&2; exit 1; }; \
+         fi; \
+       done \
+    && test "$(git rev-parse 'HEAD^{tree}')" = "${LLAMA_CPP_TREE}" \
+    && echo "merged tree ${LLAMA_CPP_TREE}"
+
+RUN --mount=type=cache,target=/root/.cache/ccache \
+    cd /src/llama.cpp \
+    && cmake -S . -B build -G Ninja \
+         -DCMAKE_BUILD_TYPE=Release \
+         -DCMAKE_C_COMPILER=/opt/rocm/llvm/bin/clang \
+         -DCMAKE_CXX_COMPILER=/opt/rocm/llvm/bin/clang++ \
+         -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+         -DCMAKE_HIP_COMPILER_LAUNCHER=ccache \
+         -DGGML_HIP=ON \
+         -DGPU_TARGETS="${GPU_ARCH}" \
+         -DGGML_HIP_ROCWMMA_FATTN=OFF \
+         -DGGML_CUDA_FORCE_CUBLAS=OFF \
+         -DGGML_OPENMP=OFF \
+         -DGGML_NATIVE=ON \
+         -DGGML_BACKEND_DL=OFF \
+         -DBUILD_SHARED_LIBS=ON \
+         -DLLAMA_BUILD_TESTS=OFF \
+         -DLLAMA_OPENSSL=OFF \
+    && cmake --build build -j "${MAX_JOBS}" --target llama-server \
+    && mkdir -p /out \
+    && cp -a build/bin/llama-server build/bin/*.so* /out/
+
+# -----------------------------------------------------------------------------
+# Runtime
+# -----------------------------------------------------------------------------
+
+FROM ${ROCM_IMAGE} AS runtime
+
+COPY --from=llama-cpp-builder /out/ /opt/llama.cpp/
+
+ENV LD_LIBRARY_PATH=/opt/llama.cpp:/opt/rocm/lib
+
+RUN /opt/llama.cpp/llama-server --version
+
+WORKDIR /opt/llama.cpp
+
+EXPOSE 8000
+
+ENTRYPOINT ["/opt/llama.cpp/llama-server"]

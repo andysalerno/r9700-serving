@@ -1,26 +1,33 @@
-# vLLM on Radeon AI PRO R9700
+# Inkling 2 Mini on Radeon AI PRO R9700
 
-Build and run vLLM from source for AMD Radeon AI PRO R9700 GPUs on ROCm 10. The
-default configuration targets two R9700s (`gfx1201`) and serves a model through
-vLLM's OpenAI-compatible API, with Hugging Face Chat UI as a frontend.
+This branch serves [Inkling 2 Mini](https://huggingface.co/thinkingmachines/Inkling-2-Mini)
+as fast as possible on two AMD Radeon AI PRO R9700 GPUs (`gfx1201`), at the
+model's full 1M-token context, with Hugging Face Chat UI as a frontend. The
+`main` branch tracks the latest vLLM for the same hardware.
+
+vLLM cannot serve Inkling 2 Mini on ROCm yet (see [Why not vLLM](#why-not-vllm)),
+so this branch uses llama.cpp. It should move to vLLM once vLLM supports the
+model on RDNA4.
 
 ## Requirements
 
 - Podman with `podman compose` (`docker compose` may work, but is untested)
 - [`just`](https://just.systems/)
-- One or more R9700 GPUs; the included configuration assumes two
+- The [`hf`](https://huggingface.co/docs/huggingface_hub/guides/cli) CLI, to download the model
+- Two R9700 GPUs
 - A ROCm 10-compatible host AMDGPU driver; see AMD's
   [ROCm compatibility matrix](https://rocm.docs.amd.com/en/docs-10.2.0/compatibility/compatibility-matrix.html)
 
 ## Build and run
 
-The `justfile` provides the complete workflow:
-
 ```sh
-# Optionally build localhost/vllm-fullbuild:0.34.0 ahead of time.
+# Download the pinned GGUFs (about 23.5 GB) and verify their checksums.
+just download
+
+# Optionally build localhost/llama-cpp-inkling ahead of time.
 just build
 
-# Build the pinned image, start vLLM and Chat UI, and wait for readiness.
+# Download, build, start llama.cpp and Chat UI, and wait for readiness.
 just up
 
 # Follow service logs.
@@ -30,23 +37,127 @@ just logs
 just down
 ```
 
-The vLLM OpenAI-compatible API is available at
-`http://localhost:8000/v1`, and Chat UI is available at
-`http://localhost:8001`.
+The OpenAI-compatible API is available at `http://localhost:8000/v1` (model
+`inkling-2-mini`), and Chat UI at `http://localhost:8001`. Chat, reasoning
+(`reasoning_effort`), tool calls, and image input work. The model files are
+stored under `~/.cache/llama.cpp/inkling-2-mini/<revision>/` and mounted
+read-only.
 
-`just up` always builds with the current pins (reusing unchanged build layers)
-instead of reusing an old `latest` image. The custom vLLM image is tagged with
-`VLLM_VERSION` and is never pulled from a registry.
+## How it is served
 
-Chat UI starts only after vLLM's healthcheck passes because it fetches the model
-list during startup. `just up` waits for vLLM to finish loading and warming up
-before starting Chat UI, then waits for both services to be running, with a
-30-minute readiness timeout. Image building happens before that timeout;
-a cold build or startup can take several minutes.
+`Dockerfile.inkling` builds llama.cpp for `gfx1201` (HIP) from pinned sources
+on the same ROCm 10.2 image as the vLLM fullbuild:
 
-Run `just --list` to see all available recipes.
+- Upstream llama.cpp tag `b12645`, plus the 42 pinned PR commits in
+  [`inkling/llama-cpp-pins.txt`](inkling/llama-cpp-pins.txt), merged in order.
+- The pins are Unsloth's prebuilt pin set (`scripts/unsloth/pr-set.json` at
+  `unslothai/llama.cpp` `ff43f5ef`), which carries Inkling 2 support that
+  mainline llama.cpp lacks, with one change: #385 is dropped and #386 is
+  replaced by [unslothai/llama.cpp#406](https://github.com/unslothai/llama.cpp/pull/406),
+  banded relative-bias attention on AMD WMMA (stacked on #386 and #385).
+- Pure add/add conflicts between pins are resolved with Unsloth's
+  `additive_merge.py`, as their CI does; any other conflict fails the build.
+  The build then checks that the merged source tree hashes to `LLAMA_CPP_TREE`
+  in `env/env.inkling`.
 
-## Configuration
+PR #406 is what makes long contexts fast on RDNA4. Without it, Inkling 2's
+relative-position bias forces a dense attention path that falls to 136 tok/s
+prefill at 64K tokens. #406 changes only the attention kernel's accumulation
+order; its output differs from the dense path by a mean KL divergence of
+0.0018 (98.7% same top token), the same as the difference between llama.cpp's
+Vulkan and HIP backends (0.0018, 98.5%). It retrieves a passphrase planted at
+10%, 50% and 90% depth of 64K and 128K-token prompts.
+
+### Model files and precision
+
+The weights come from one pinned revision of
+[`unsloth/Inkling-2-Mini-GGUF`](https://huggingface.co/unsloth/Inkling-2-Mini-GGUF),
+listed with their SHA-256 checksums in `env/env.inkling`:
+
+- `Mainline_Support/Inkling-2-Mini-UD-Q8_K_XL.gguf_file`, the model in the
+  layout mainline llama.cpp reads
+- `mmproj-BF16.gguf`, the vision projector
+
+Both were checked tensor by tensor against
+[`thinkingmachines/Inkling-2-Mini`](https://huggingface.co/thinkingmachines/Inkling-2-Mini)
+at `b85c3cfa`. Every tensor decodes bit-exactly to the original weights: the
+NVFP4 experts keep their original 4-bit values and scales, and the MXFP8
+experts and all other weights are lossless BF16. The smaller Unsloth quants,
+and the `F16` projector, are lossy.
+
+### Configuration
+
+Runtime settings are in `compose.yaml`:
+
+- `--split-mode layer --tensor-split 14,10`: layers are split across both
+  GPUs, which also splits the KV cache. The last GPU also holds the output
+  layer and the largest compute buffers, so it gets fewer layers. Row and tensor
+  split are not supported for this architecture.
+- `--ctx-size 1048576 --parallel 1`: the model's full context, in one slot.
+  Prompt caching reuses earlier turns, so a follow-up to a 63K-token
+  conversation processes only its new tokens.
+- `--ubatch-size 1024 --batch-size 4096`: the fastest prefill that still fits
+  1M tokens; `--ubatch-size 2048` runs out of memory at that context.
+- `--flash-attn on`, F16 KV cache.
+- Sampling `--temp 1.0 --top-p 1.0 --top-k 0 --min-p 0.0`, as Thinking
+  Machines and Unsloth recommend.
+- `HIP_VISIBLE_DEVICES=0,1`, which excludes the CPU's integrated GPU.
+
+The DSpark speculative drafter that ships with the model
+(`dspark/dspark-Inkling-2-Mini-BF16.gguf`, `--spec-type draft-dspark`) is not
+enabled: it adds about 10% decode speed at short contexts and none at 64K, and
+its draft KV cache does not fit alongside a 1M-token context.
+
+### Performance
+
+Measured 2026-11-23 on 2x R9700, single request, with the configuration above:
+
+| Context | Prefill | Decode |
+|---|---|---|
+| Short (≤ 4K) | 1,640 tok/s | 39.5 tok/s |
+| 64K | 1,585 tok/s | 34.5 tok/s |
+| 128K | 1,295 tok/s | 30.5 tok/s |
+| 256K | 959 tok/s | 23.8 tok/s |
+| 512K | 621 tok/s | 17.3 tok/s |
+| 1,026K | 365 tok/s | 11.4 tok/s |
+
+Peak VRAM at a full 1M context is 32.7 and 33.0 GB of 34.2 GB.
+
+The alternatives measured with the same model files (two GPUs, 64K prompt):
+
+| Backend | Prefill | Decode |
+|---|---|---|
+| llama.cpp HIP + #406 (this branch) | 1,585 tok/s | 34.5 tok/s |
+| Unsloth prebuilt `b12631-mix-acc0843`, Vulkan | 416 tok/s | 18.8 tok/s |
+| Unsloth pin set without #406, HIP | 136 tok/s | 33.2 tok/s |
+
+Mainline llama.cpp images (`server-rocm`, `server-vulkan` at `b12627`) are
+slower still, and do not load the DSpark drafter.
+
+### Why not vLLM
+
+vLLM supports Inkling 2 Mini only on `main` (expected in v0.35.0), and only
+on NVIDIA GPUs. On ROCm it refuses the checkpoint ("inkling2 quantization is
+currently not supported in rocm"), and its kernels use NVIDIA-only PTX, Gluon,
+FlashInfer and FP4 tensor-core instructions. An AMD port for Inkling 2 Small on
+MI355X is open as [vllm-project/vllm#67685](https://github.com/vllm-project/vllm/pull/67685);
+it covers neither the looped Mini nor RDNA4.
+
+### Updating the llama.cpp pins
+
+To take a newer Unsloth pin set or a newer #406:
+
+1. Rebuild the pin list from the new `pr-set.json`, keeping the #385/#386
+   to #406 swap if #406 is still unmerged, and pick an upstream `b####` base.
+2. Merge it locally the same way the Dockerfile does, and set
+   `LLAMA_CPP_BASE_COMMIT`, `LLAMA_CPP_TREE`, `LLAMA_CPP_VERSION`,
+   `UNSLOTH_LLAMA_CPP_COMMIT` and `ADDITIVE_MERGE_SHA256` in `env/env.inkling`.
+3. Rebuild and re-measure prefill at 64K and 128K, and the 1M-token fit.
+
+## vLLM fullbuild (reference)
+
+`Dockerfile.fullbuild` and `env/env.fullbuild` are kept from `main`, unused on
+this branch, for the eventual move to vLLM. Their documentation follows.
 
 Build versions and source revisions are pinned in `env/env.fullbuild`. The
 build uses `Dockerfile.fullbuild` to install the pinned PyTorch/ROCm stack and
@@ -64,7 +175,7 @@ The dependency pins were reviewed on 2026-11-22:
 | vLLM | Exact [`v0.34.0` source](https://github.com/vllm-project/vllm/commit/62d4bc3c7e33b1b6c906e233e6af2d3506c482ca), packaged as `0.34.0+rocm102.gfx1201` |
 | Chat UI | Latest `ghcr.io/huggingface/chat-ui-db` image, pinned by digest `sha256:3cb93a2a3f53aacf0927f4bfd3114a2eccfefb8e417a6b042f755b42253d2c30` |
 
-### Updating the fullbuild pins
+#### Updating the fullbuild pins
 
 The versions in `env/env.fullbuild` form two different kinds of constraints:
 
@@ -137,18 +248,18 @@ the same clang and HIP versions, and a build-time HIP compile checks it.
 image tag. Keep them aligned when upgrading releases. The historical
 configurations under `archive/` are not updated.
 
-Runtime settings are in `compose.yaml`, including the model, vLLM command-line
-arguments, GPU count, ports, and mounted caches. The default model is
+On `main`, `compose.yaml` runs this image as the `vllm` service, serving
 `Qwen/Qwen3.8-27B-FP8` with tensor parallelism set to two GPUs, FP8 KV cache,
-AITER unified attention, and three-token MTP speculative decoding.
+AITER unified attention, and three-token MTP speculative decoding. On this
+branch that service is replaced by `inkling`, and `just` uses `env/env.inkling`.
 
 The runtime environment is split between:
 
 - `env/2xr9700.vllm.common` for the two-GPU ROCm configuration
 - `env/aiter-unified-attention.env` for AITER unified attention
 
-Edit these files and `compose.yaml` to match your hardware and model before
-building or starting the services.
+Edit these files to match your hardware and model before building or starting
+the vLLM service.
 
 To remove the generated host-side vLLM, Triton, TorchInductor, AITER, COMGR,
 and TVM FFI caches, run:

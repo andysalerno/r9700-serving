@@ -1,18 +1,3 @@
-x-vllm-full-cache-volumes: &vllm_full_cache_volumes
-  - ./chat-templates/:/app/chat-templates:Z
-  - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
-  - ${HOME}/.cache/vllm:/root/.cache/vllm:Z
-  - ${HOME}/.cache/triton:/root/.cache/triton:Z
-  - ${HOME}/.cache/triton:/root/.triton:Z
-  - ${HOME}/.cache/torchinductor:/root/.cache/torchinductor:Z
-  - ${HOME}/.cache/aiter:/root/.aiter:Z
-  - ${HOME}/.cache/comgr:/root/.cache/comgr:Z
-  - ${HOME}/.cache/tvm-ffi:/root/.cache/tvm-ffi:Z
-
-x-llamacpp-cache-volumes: &llamacpp_cache_volumes
-  - ${HOME}/.cache/huggingface:/root/.cache/huggingface:Z
-  - ${HOME}/.cache/llama.cpp:/root/.cache/llama.cpp:Z
-
 x-amd-devices: &amd_devices
   devices:
     - /dev/kfd:/dev/kfd
@@ -26,77 +11,65 @@ x-amd-devices: &amd_devices
   ipc: host
 
 services:
-  vllm:
+  inkling:
     <<: *amd_devices
-    image: localhost/vllm-fullbuild:${VLLM_VERSION:?set VLLM_VERSION in env/env.fullbuild}
+    image: localhost/llama-cpp-inkling:${LLAMA_CPP_VERSION:?set LLAMA_CPP_VERSION in env/env.inkling}
     pull_policy: never
     build:
       context: .
-      dockerfile: Dockerfile.fullbuild
+      dockerfile: Dockerfile.inkling
       args:
         ROCM_IMAGE: ${ROCM_IMAGE}
-        TORCH_INDEX_URL: ${TORCH_INDEX_URL}
         GPU_ARCH: ${GPU_ARCH}
         MAX_JOBS: ${MAX_JOBS}
-        TORCH_VERSION: ${TORCH_VERSION}
-        TORCHVISION_VERSION: ${TORCHVISION_VERSION}
-        TORCHAUDIO_VERSION: ${TORCHAUDIO_VERSION}
-        TRITON_VERSION: ${TRITON_VERSION}
-        VLLM_REF: ${VLLM_REF}
-        VLLM_VERSION: ${VLLM_VERSION}
-        AITER_REF: ${AITER_REF}
-        FLASH_ATTN_REF: ${FLASH_ATTN_REF}
-    container_name: vllm
+        LLAMA_CPP_BASE_COMMIT: ${LLAMA_CPP_BASE_COMMIT}
+        LLAMA_CPP_TREE: ${LLAMA_CPP_TREE}
+        UNSLOTH_LLAMA_CPP_COMMIT: ${UNSLOTH_LLAMA_CPP_COMMIT}
+        ADDITIVE_MERGE_SHA256: ${ADDITIVE_MERGE_SHA256}
+    container_name: inkling
     ports:
       - "8000:8000"
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
-      interval: 30s
+      interval: 15s
       timeout: 5s
       retries: 3
-      start_period: 10m
+      start_period: 5m
     networks:
       default:
         aliases:
           - llm-backend
-    volumes: *vllm_full_cache_volumes
-    env_file:
-      - env/2xr9700.vllm.common
-      - env/aiter-unified-attention.env
+    volumes:
+      - ${HOME}/.cache/llama.cpp/inkling-2-mini/${INKLING_GGUF_REVISION}:/models:ro,Z
     environment:
-      - GPU_MAX_HW_QUEUES=1
-      - NCCL_P2P_DISABLE=1
-      # --chat-template /app/chat-templates/qwen36.jinja
+      # ROCm device 2 is the CPU's integrated GPU; 0 and 1 are the R9700s.
+      - HIP_VISIBLE_DEVICES=0,1
     command: >
-      Qwen/Qwen3.8-27B-FP8
-      --tokenizer Qwen/Qwen3.8-27B
-      --served-model-name qwen3.8-27b
-      --limit-mm-per-prompt '{"image": 25, "audio": 0, "video": 0}'
-      --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3
-      --default-chat-template-kwargs '{"preserve_thinking": true, "reasoning_effort": "low"}'
-      --max-model-len 128000
-      --enable-prefix-caching
-      --enable-prompt-tokens-details
-      --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
-      --gpu-memory-utilization 0.93
+      --model /models/${INKLING_MODEL_FILE}
+      --mmproj /models/${INKLING_MMPROJ_FILE}
+      --alias inkling-2-mini
+      --jinja
       --host 0.0.0.0
       --port 8000
-      --dtype auto
-      --max-num-seqs 4
-      --kv-cache-dtype fp8
-      -tp 2
-      --attention-backend ROCM_AITER_UNIFIED_ATTN
-      --speculative-config '{"method": "mtp", "num_speculative_tokens": 3, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
+      --n-gpu-layers 99
+      --split-mode layer
+      --tensor-split 14,10
+      --ctx-size 1048576
+      --parallel 1
+      --batch-size 4096
+      --ubatch-size 1024
+      --flash-attn on
+      --temp 1.0 --top-p 1.0 --top-k 0 --min-p 0.0
 
   ##########
   # tools and dashboards
   ##########
 
   chatui:
-    image: ${CHATUI_IMAGE:?set CHATUI_IMAGE in env/env.fullbuild}
+    image: ${CHATUI_IMAGE:?set CHATUI_IMAGE in env/env.inkling}
     container_name: chatui
     depends_on:
-      vllm:
+      inkling:
         condition: service_healthy
     ports:
       - "8001:3000"
