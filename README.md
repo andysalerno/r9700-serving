@@ -10,14 +10,14 @@ vLLM's OpenAI-compatible API, with Hugging Face Chat UI as a frontend.
 - [`just`](https://just.systems/)
 - One or more R9700 GPUs; the included configuration assumes two
 - A ROCm 10-compatible host AMDGPU driver; see AMD's
-  [ROCm compatibility matrix](https://rocm.docs.amd.com/en/docs-10.1.0/compatibility/compatibility-matrix.html)
+  [ROCm compatibility matrix](https://rocm.docs.amd.com/en/docs-10.2.0/compatibility/compatibility-matrix.html)
 
 ## Build and run
 
 The `justfile` provides the complete workflow:
 
 ```sh
-# Optionally build localhost/vllm-fullbuild:0.33.0 ahead of time.
+# Optionally build localhost/vllm-fullbuild:0.34.0 ahead of time.
 just build
 
 # Build the pinned image, start vLLM and Chat UI, and wait for readiness.
@@ -52,17 +52,17 @@ Build versions and source revisions are pinned in `env/env.fullbuild`. The
 build uses `Dockerfile.fullbuild` to install the pinned PyTorch/ROCm stack and
 compile Flash Attention, AITER, and vLLM for `gfx1201`.
 
-The dependency pins were reviewed on 2026-11-09:
+The dependency pins were reviewed on 2026-11-22:
 
 | Component | Pin |
 |---|---|
-| ROCm | `10.1.0-full` (latest available ROCm 10 image), pinned by digest `sha256:5ed1362ea542a928651e4c710b44024ebe98870f74159cb70f0265aec8ef0abe` |
-| PyTorch / torchvision / torchaudio | `2.14.0` / `0.29.0a0` / `2.11.0.3`, all `+rocm10.1.0`, from [AMD's stable wheel index](https://stable.repo.amd.com/rocm/whl-next/) |
-| Triton | AMD's `3.8.0+git669b31ac.rocm10.1.0`, explicitly pinned to the build required by PyTorch |
-| AITER | [`v0.1.29`](https://github.com/ROCm/aiter/commit/a0c4b69c146d94e393984bbe553b704e8c89a5e4), the latest release and tip of the `release/v0.1.29` line |
-| Flash Attention | [`54b044c8cf89`](https://github.com/ROCm/flash-attention/commit/54b044c8cf897dfcc2577a665559d1bfda0bfc80), the tip of ROCm's `tridao` branch using the Triton AMD backend, not the CK-only release tags |
-| vLLM | Exact [`v0.33.0` source](https://github.com/vllm-project/vllm/commit/4ba787ec9959e566d3b587a796dff07673324da5), packaged as `0.33.0+rocm101.gfx1201` |
-| Chat UI | Latest `ghcr.io/huggingface/chat-ui-db` image, pinned by digest `sha256:382387fd0ca1572c9bbe578d98350b13988b472946ebfb6058a1245674a5fb0e` |
+| ROCm | `10.2.0-full` (latest available ROCm 10 image), pinned by digest `sha256:21801c0ba1bc4aba31f81ab11fe576c43daa7f2c7f42bac7baaa4d2f75273f86` |
+| PyTorch / torchvision / torchaudio | `2.14.0` / `0.29.2` / `2.11.1`, all `+rocm10.2.0`, from [AMD's stable wheel index](https://stable.repo.amd.com/rocm/whl-next/) |
+| Triton | AMD's `3.9.0+git0a6e13e6.rocm10.2.0`, explicitly pinned to the build required by PyTorch |
+| AITER | [`v0.1.30`](https://github.com/ROCm/aiter/commit/77ba72b7061a3c76c4f726a50e8edfd2fe2a80e7), the latest release and tip of the `release/v0.1.30` line |
+| Flash Attention | [`aae6770da7df`](https://github.com/ROCm/flash-attention/commit/aae6770da7dfd2bafd57d2d0ee3d1428b62f4334), the tip of ROCm's `tridao` branch using the Triton AMD backend, not the CK-only release tags |
+| vLLM | Exact [`v0.34.0` source](https://github.com/vllm-project/vllm/commit/62d4bc3c7e33b1b6c906e233e6af2d3506c482ca), packaged as `0.34.0+rocm102.gfx1201` |
+| Chat UI | Latest `ghcr.io/huggingface/chat-ui-db` image, pinned by digest `sha256:3cb93a2a3f53aacf0927f4bfd3114a2eccfefb8e417a6b042f755b42253d2c30` |
 
 ### Updating the fullbuild pins
 
@@ -72,34 +72,34 @@ The versions in `env/env.fullbuild` form two different kinds of constraints:
   and Triton wheels form one native stack. Use the matching versions published
   in [AMD's ROCm wheel index](https://stable.repo.amd.com/rocm/whl-next/),
   including the `gfx1201` device wheel, rather than bumping any wheel alone.
-  vLLM v0.33.0 declares PyTorch 2.14 in
-  [`CMakeLists.txt`](https://github.com/vllm-project/vllm/blob/v0.33.0/CMakeLists.txt)
+  vLLM v0.34.0 declares PyTorch 2.14 in
+  [`CMakeLists.txt`](https://github.com/vllm-project/vllm/blob/v0.34.0/CMakeLists.txt)
   and requires exactly `torch == 2.14.0` in
-  [`pyproject.toml`](https://github.com/vllm-project/vllm/blob/v0.33.0/pyproject.toml),
-  so PyTorch follows it to 2.14.0. CMake warns rather than failing on a ROCm
-  PyTorch version mismatch; the declared version is nevertheless the right
-  starting point for this build. AMD publishes the matching torchvision 0.29
-  for ROCm 10.1 only as `0.29.0a0`; it is the sole torchvision build for this
-  PyTorch and ROCm pair. torchaudio stays on its latest `2.11.0.x` ROCm 10.1
-  build, as torchaudio no longer releases alongside PyTorch.
-  Upstream's [ROCm base Dockerfile](https://github.com/vllm-project/vllm/blob/v0.33.0/docker/Dockerfile.rocm_base)
+  [`pyproject.toml`](https://github.com/vllm-project/vllm/blob/v0.34.0/pyproject.toml),
+  so keep PyTorch on 2.14.0 even though AMD also publishes 2.15 wheels.
+  CMake warns rather than failing on a ROCm PyTorch version mismatch; the
+  declared version is nevertheless the right starting point for this build.
+  AMD publishes torch 2.14.0 for ROCm 10.2, so the stack moves to the newer
+  ROCm 10.2 image and wheels. torchvision `0.29.2` and torchaudio `2.11.1` are
+  AMD's newest ROCm 10.2 builds; both are Python-version-independent wheels
+  that accept this PyTorch (`torch>=2.14.0` and `torch>=2.11`).
+  Upstream's [ROCm base Dockerfile](https://github.com/vllm-project/vllm/blob/v0.34.0/docker/Dockerfile.rocm_base)
   still uses PyTorch 2.13 on ROCm 10.0, and its
-  [ROCm build requirements](https://github.com/vllm-project/vllm/blob/v0.33.0/requirements/build/rocm.txt)
+  [TheRock build requirements](https://github.com/vllm-project/vllm/blob/v0.34.0/requirements/build/rock.txt)
   an older PyTorch 2.12 stack. Do not mix individual pins from those paths with
-  this ROCm 10.1 wheel stack. PyTorch's wheel metadata requires its exact Triton
-  build, which is also the Triton commit (`669b31ac`) used by upstream's ROCm
-  base images.
+  this ROCm 10.2 wheel stack. PyTorch's wheel metadata requires its exact Triton
+  build: torch 2.14.0 on ROCm 10.2 requires Triton 3.9 (`0a6e13e6`), whereas
+  upstream's ROCm base images still use the 3.8 commit (`669b31ac`).
 - **Review and rebuild independently:** AITER and Flash Attention are built
   from source against that installed PyTorch/Triton stack. Their upstream
   revisions need not match vLLM's ROCm Dockerfile pins exactly, but newer
   revisions are *not* guaranteed compatible: check their build requirements
   and GPU support, then rebuild the image and test inference before adopting
   them. AITER tracks its `release/*` branches rather than `main`; the current
-  pin is the published `v0.1.29` release. vLLM v0.33.0's ROCm base Dockerfile
-  pins `v0.1.26`; vLLM `main` has since adopted `v0.1.27` and `v0.1.28.post1`
-  as pin-only bumps without vLLM source changes, and has a pending pin-only
-  `v0.1.29` bump ([vllm-project/vllm#66596](https://github.com/vllm-project/vllm/pull/66596)).
-  vLLM's [ROCm runtime requirements](https://github.com/vllm-project/vllm/blob/v0.33.0/requirements/rocm.txt)
+  pin is the published `v0.1.30` release. vLLM v0.34.0's ROCm base Dockerfile
+  pins `v0.1.28.post1`, and vLLM `main` has since moved to `v0.1.29.post1`;
+  `v0.1.30` is newer than either.
+  vLLM's [ROCm runtime requirements](https://github.com/vllm-project/vllm/blob/v0.34.0/requirements/rocm.txt)
   are copied from the selected vLLM source and installed at build time;
   preserve their own exact pins and paired-package constraints rather than
   overriding them independently.
@@ -117,18 +117,19 @@ first, so Flash Attention neither builds nor installs its bundled
 The native Rust frontend (`vllm-rs`) uses vLLM's pinned toolchain and
 `tools/build_rust.sh`.
 The runtime preloads ROCm PyTorch via `sitecustomize.py` in every Python process,
-including vLLM's model-inspection subprocesses. v0.30.0 added, and v0.33.0
+including vLLM's model-inspection subprocesses. v0.30.0 added, and v0.34.0
 retains, a ROCm GPU profiling helper in `vllm/env_override.py` that loads
 `libtorch_cpu.so` before PyTorch; with this wheel stack that order registers
 LLVM's `spirv-expand-step` option twice and aborts at startup. Loading PyTorch first avoids the crash,
 but may bypass that helper's early GPU profiling setup. Keep this ordering
 when changing the runtime until the underlying incompatibility is resolved.
 
-ROCm 10.1 also changed two runtime details. `/opt/rocm/share/amd_smi` is no
-longer a pip project, so the runtime imports that relocatable `amdsmi` tree in
-place through a `.pth` file; PyPI's older `amdsmi` does not match ROCm 10.1's
-`libamd_smi.so.27`. The pip SDK's `hipcc` now forces `--rocm-path` to its own
-tree, which lacks device libraries, so AITER's runtime JIT failed. The runtime
+ROCm 10.1 also changed two runtime details, and ROCm 10.2 retains both.
+`/opt/rocm/share/amd_smi` is no longer a pip project, so the runtime imports
+that relocatable `amdsmi` tree in place through a `.pth` file; PyPI's older
+`amdsmi` does not match ROCm 10.1+'s `libamd_smi.so.27`. The pip SDK's
+`hipcc` now forces `--rocm-path` to its own tree, which lacks device
+libraries, so AITER's runtime JIT failed. The runtime
 puts the base image's complete `/opt/rocm` toolchain first on `PATH`; it uses
 the same clang and HIP versions, and a build-time HIP compile checks it.
 

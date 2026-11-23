@@ -249,7 +249,7 @@ COPY --from=aiter-builder /wheels/ /install/
 COPY --from=vllm-builder /wheels/ /install/
 COPY --from=vllm-builder /src/vllm/requirements/ /install/requirements/
 
-# ROCm 10.1 ships amdsmi as a relocatable source tree, not a pip project; it
+# ROCm 10.1+ ships amdsmi as a relocatable source tree, not a pip project; it
 # resolves libamd_smi.so relative to that tree, so import it in place.
 RUN --mount=type=cache,target=/root/.cache/pip \
     test -f /opt/rocm/share/amd_smi/amdsmi/__init__.py \
@@ -263,7 +263,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 ENV FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
 
-# AITER JIT-compiles kernels with the first hipcc on PATH. ROCm 10.1's pip SDK
+# AITER JIT-compiles kernels with the first hipcc on PATH. ROCm 10.1+'s pip SDK
 # hipcc forces --rocm-path to its own tree, which lacks device libraries, so
 # prefer the base image's identical, complete ROCm toolchain at ROCM_PATH.
 ENV PATH=/opt/rocm/bin:/opt/rocm/llvm/bin:${PATH}
