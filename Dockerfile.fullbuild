@@ -87,51 +87,6 @@ print("ROCm:", torch.version.hip)
 PY
 
 # -----------------------------------------------------------------------------
-# Flash Attention for RDNA
-# -----------------------------------------------------------------------------
-
-FROM framework-base AS flash-attention-builder
-
-ARG FLASH_ATTN_REPO=https://github.com/ROCm/flash-attention.git
-ARG FLASH_ATTN_REF
-ARG AITER_REF
-ARG MAX_JOBS
-
-WORKDIR /src
-
-RUN mkdir flash-attention \
-    && git -C flash-attention init --quiet \
-    && git -C flash-attention fetch --depth=1 --no-tags \
-       "${FLASH_ATTN_REPO}" "${FLASH_ATTN_REF}" \
-    && git -C flash-attention checkout --detach FETCH_HEAD \
-    && git -C flash-attention submodule update --init --recursive --depth=1
-
-# Flash Attention installs its bundled AITER even with pip --no-deps.
-# Stage the shared pin so setup.py's submodule update also retains it.
-RUN git -C flash-attention/third_party/aiter fetch --depth=1 origin "${AITER_REF}" \
-    && git -C flash-attention/third_party/aiter checkout --detach FETCH_HEAD \
-    && git -C flash-attention/third_party/aiter submodule update --init --recursive --depth=1 \
-    && git -C flash-attention add third_party/aiter
-
-# COPY patches/flash-attention/ /patches/flash-attention/
-
-# RUN cd /src/flash-attention \
-#     && for patch in /patches/flash-attention/*.patch; do \
-#          [ -e "$patch" ] || continue; \
-#          git apply "$patch"; \
-#        done
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    cd /src/flash-attention \
-    && FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE \
-       MAX_JOBS="${MAX_JOBS}" \
-       python -m pip wheel \
-         --no-deps \
-         --no-build-isolation \
-         --wheel-dir=/wheels \
-         .
-
-# -----------------------------------------------------------------------------
 # AITER for gfx1201
 # -----------------------------------------------------------------------------
 
@@ -166,6 +121,48 @@ RUN --mount=type=cache,target=/root/.cache/pip \
        GPU_ARCHS="${GPU_ARCH}" \
        MAX_JOBS="${MAX_JOBS}" \
        python setup.py bdist_wheel --dist-dir=/wheels
+
+# -----------------------------------------------------------------------------
+# Flash Attention for RDNA
+# -----------------------------------------------------------------------------
+
+FROM framework-base AS flash-attention-builder
+
+ARG FLASH_ATTN_REPO=https://github.com/ROCm/flash-attention.git
+ARG FLASH_ATTN_REF
+ARG MAX_JOBS
+
+WORKDIR /src
+
+RUN mkdir flash-attention \
+    && git -C flash-attention init --quiet \
+    && git -C flash-attention fetch --depth=1 --no-tags \
+       "${FLASH_ATTN_REPO}" "${FLASH_ATTN_REF}" \
+    && git -C flash-attention checkout --detach FETCH_HEAD
+
+# COPY patches/flash-attention/ /patches/flash-attention/
+
+# RUN cd /src/flash-attention \
+#     && for patch in /patches/flash-attention/*.patch; do \
+#          [ -e "$patch" ] || continue; \
+#          git apply "$patch"; \
+#        done
+
+# The Triton backend's kernels live in AITER. Build against the pinned AITER
+# wheel instead of letting setup.py install its bundled third_party/aiter.
+COPY --from=aiter-builder /wheels/ /aiter-wheels/
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install --no-deps /aiter-wheels/*.whl \
+    && cd /src/flash-attention \
+    && FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE \
+       FLASH_ATTENTION_USE_SYSTEM_AITER=TRUE \
+       MAX_JOBS="${MAX_JOBS}" \
+       python -m pip wheel \
+         --no-deps \
+         --no-build-isolation \
+         --wheel-dir=/wheels \
+         .
 
 # -----------------------------------------------------------------------------
 # vLLM
