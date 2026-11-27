@@ -72,6 +72,10 @@ services:
       # on these GPUs. Graph buffer registration breaks CUDA graph capture.
       - NCCL_CUMEM_ENABLE=1
       - NCCL_GRAPH_REGISTER=0
+      # vLLM's compile step points Triton's kernel cache at the inductor cache,
+      # by default under /tmp in the container; keep it on the mounted host
+      # cache so compiled kernels survive restarts.
+      - TORCHINDUCTOR_CACHE_DIR=/root/.cache/torchinductor
     # 2048-token prefill chunks keep the activation reserve small enough for a
     # 589,824-token context with the DSpark draft; three draft tokens are the
     # fastest on two R9700s (the checkpoint's block drafts up to seven).

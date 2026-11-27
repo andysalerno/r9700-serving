@@ -62,7 +62,7 @@ The dependency pins were reviewed on 2026-11-22:
 | Triton | AMD's `3.9.0+git0a6e13e6.rocm10.2.0`, explicitly pinned to the build required by PyTorch |
 | AITER | [`v0.1.30`](https://github.com/ROCm/aiter/commit/77ba72b7061a3c76c4f726a50e8edfd2fe2a80e7), the latest release and tip of the `release/v0.1.30` line |
 | Flash Attention | [`aae6770da7df`](https://github.com/ROCm/flash-attention/commit/aae6770da7dfd2bafd57d2d0ee3d1428b62f4334), the tip of ROCm's `tridao` branch using the Triton AMD backend, not the CK-only release tags |
-| vLLM | [`d5b3b56fea46`](https://github.com/andysalerno/vllm/commit/d5b3b56fea466f4cc27ff237cc3f449d7b482efa) on `andysalerno/vllm` branch `inkling2-rdna4`, packaged as `0.35.0.dev0+gd5b3b56fea46.rocm102.gfx1201` (see [Inkling 2 Mini](#inkling-2-mini)) |
+| vLLM | [`bb6ea4e1a55c`](https://github.com/andysalerno/vllm/commit/bb6ea4e1a55cdbc5acbab59ed0051d672980b4a6) on `andysalerno/vllm` branch `inkling2-rdna4`, packaged as `0.35.0.dev0+gbb6ea4e1a55c.rocm102.gfx1201` (see [Inkling 2 Mini](#inkling-2-mini)) |
 | Chat UI | Latest `ghcr.io/huggingface/chat-ui-db` image, pinned by digest `sha256:3cb93a2a3f53aacf0927f4bfd3114a2eccfefb8e417a6b042f755b42253d2c30` |
 
 ### Updating the fullbuild pins
@@ -203,6 +203,11 @@ Settings that matter on these GPUs:
 - Three DSpark draft tokens beat the checkpoint's seven (~50 tok/s for one
   request): later block positions are rarely accepted, and each verified token
   reads more experts.
+- `TORCHINDUCTOR_CACHE_DIR` puts the compiled Triton kernels in the mounted
+  `~/.cache/torchinductor` (vLLM points Triton at the inductor cache, which
+  is otherwise under `/tmp` in the container and lost on restart). The first
+  requests of a new image compile a bounded set of kernels (up to a few
+  seconds each); later restarts reuse them.
 - `cpuset: "0-5,12-17"` keeps vLLM on the Ryzen 9 9900X3D's V-cache CCD of
   this host. Unpinned, decode at four requests drops to ~160 tok/s; adjust or
   remove it on other CPUs.
