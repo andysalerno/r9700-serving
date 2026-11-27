@@ -20,8 +20,10 @@
 > | Metric | Result |
 > |---|---|
 > | Decode, 1 / 2 / 4 concurrent requests | ~87 / 142 / 210 tok/s (aggregate) |
-> | Prefill at 64K / 128K tokens | ~3,200-3,500 / ~3,000 tok/s |
-> | Wikitext-2 perplexity | 7.440 (Hugging Face bf16 reference: 7.437) |
+> | Prefill at 64K / 128K tokens | ~3,600 / ~3,000 tok/s |
+> | 261K-token prompt: prefill / decode | 2,148 tok/s (122 s to first token) / ~50-59 tok/s |
+> | 523K-token prompt: prefill / decode | 1,464 tok/s (358 s to first token) / ~35 tok/s |
+> | Wikitext-2 perplexity | 7.438 (Hugging Face bf16 reference: 7.437) |
 >
 > See that branch's README for its settings and caveats.
 
