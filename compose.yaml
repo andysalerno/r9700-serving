@@ -48,6 +48,10 @@ services:
         AITER_REF: ${AITER_REF}
         FLASH_ATTN_REF: ${FLASH_ATTN_REF}
     container_name: vllm
+    # This host's Ryzen 9 9900X3D: CPUs 0-5,12-17 are the CCD with 3D V-cache.
+    # On the other CCD the engine's per-step host work runs slower; decode at
+    # four requests drops from ~210 to ~160 tok/s when the scheduler spreads it.
+    cpuset: "0-5,12-17"
     ports:
       - "8000:8000"
     healthcheck:

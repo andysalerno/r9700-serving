@@ -62,7 +62,7 @@ The dependency pins were reviewed on 2026-11-22:
 | Triton | AMD's `3.9.0+git0a6e13e6.rocm10.2.0`, explicitly pinned to the build required by PyTorch |
 | AITER | [`v0.1.30`](https://github.com/ROCm/aiter/commit/77ba72b7061a3c76c4f726a50e8edfd2fe2a80e7), the latest release and tip of the `release/v0.1.30` line |
 | Flash Attention | [`aae6770da7df`](https://github.com/ROCm/flash-attention/commit/aae6770da7dfd2bafd57d2d0ee3d1428b62f4334), the tip of ROCm's `tridao` branch using the Triton AMD backend, not the CK-only release tags |
-| vLLM | [`64aad2be3a61`](https://github.com/andysalerno/vllm/commit/64aad2be3a6109aea1a5c716f25407ccc125fb1e) on `andysalerno/vllm` branch `inkling2-rdna4`, packaged as `0.35.0.dev0+g64aad2be3a61.rocm102.gfx1201` (see [Inkling 2 Mini](#inkling-2-mini)) |
+| vLLM | [`d5b3b56fea46`](https://github.com/andysalerno/vllm/commit/d5b3b56fea466f4cc27ff237cc3f449d7b482efa) on `andysalerno/vllm` branch `inkling2-rdna4`, packaged as `0.35.0.dev0+gd5b3b56fea46.rocm102.gfx1201` (see [Inkling 2 Mini](#inkling-2-mini)) |
 | Chat UI | Latest `ghcr.io/huggingface/chat-ui-db` image, pinned by digest `sha256:3cb93a2a3f53aacf0927f4bfd3114a2eccfefb8e417a6b042f755b42253d2c30` |
 
 ### Updating the fullbuild pins
@@ -180,11 +180,16 @@ context and DSpark speculative decoding with three draft tokens.
 
 | Measurement (2x R9700, TP=2) | Result |
 |---|---|
-| Wikitext-2 perplexity (32x1024 windows) | 7.440 (top-1 agreement 0.976), vs 7.437 for a Hugging Face bf16 reference |
+| Wikitext-2 perplexity (32x1024 windows) | 7.438 (top-1 agreement 0.976), vs 7.437 for a Hugging Face bf16 reference |
 | Needle retrieval | passes at 553,873 tokens (30% and 80% depth) |
 | Prefill | ~3,500 tok/s at 64K, ~3,000 tok/s at 128K |
 | Decode, chat, 1 / 2 / 4 requests | ~87 / 142 / 210 tok/s (aggregate) |
 | Decode without DSpark, 1 / 2 / 4 requests | ~64 / 111 / 172 tok/s |
+| 261,386-token prompt, 1 request | prefill 2,148 tok/s (122 s to first token), decode ~50-59 tok/s |
+| 523,405-token prompt, 1 request | prefill 1,464 tok/s (358 s to first token), decode ~35 tok/s |
+
+The long-context rows use real source code as the prompt with a request to
+explain it; decode includes DSpark (about 2.2 tokens accepted per step).
 
 Settings that matter on these GPUs:
 
@@ -198,6 +203,9 @@ Settings that matter on these GPUs:
 - Three DSpark draft tokens beat the checkpoint's seven (~50 tok/s for one
   request): later block positions are rarely accepted, and each verified token
   reads more experts.
+- `cpuset: "0-5,12-17"` keeps vLLM on the Ryzen 9 9900X3D's V-cache CCD of
+  this host. Unpinned, decode at four requests drops to ~160 tok/s; adjust or
+  remove it on other CPUs.
 
 Decode runs slower (~35 tok/s for one request) for the first 20-60 s of
 generation after the GPUs have been idle, then reaches full speed; benchmark
