@@ -1,7 +1,8 @@
 # vLLM on Radeon AI PRO R9700
 
 Build and run vLLM from source for AMD Radeon AI PRO R9700 GPUs on ROCm 10. The
-default configuration targets two R9700s (`gfx1201`) and serves a model through
+default configuration targets two R9700s (`gfx1201`) and serves
+[Inkling 2 Mini](https://huggingface.co/thinkingmachines/Inkling-2-Mini) through
 vLLM's OpenAI-compatible API, with Hugging Face Chat UI as a frontend.
 
 ## Requirements
@@ -17,7 +18,7 @@ vLLM's OpenAI-compatible API, with Hugging Face Chat UI as a frontend.
 The `justfile` provides the complete workflow:
 
 ```sh
-# Optionally build localhost/vllm-fullbuild:0.34.0 ahead of time.
+# Optionally build localhost/vllm-fullbuild:$VLLM_IMAGE_TAG ahead of time.
 just build
 
 # Build the pinned image, start vLLM and Chat UI, and wait for readiness.
@@ -36,7 +37,7 @@ The vLLM OpenAI-compatible API is available at
 
 `just up` always builds with the current pins (reusing unchanged build layers)
 instead of reusing an old `latest` image. The custom vLLM image is tagged with
-`VLLM_VERSION` and is never pulled from a registry.
+`VLLM_IMAGE_TAG` and is never pulled from a registry.
 
 Chat UI starts only after vLLM's healthcheck passes because it fetches the model
 list during startup. `just up` waits for vLLM to finish loading and warming up
@@ -61,7 +62,7 @@ The dependency pins were reviewed on 2026-11-22:
 | Triton | AMD's `3.9.0+git0a6e13e6.rocm10.2.0`, explicitly pinned to the build required by PyTorch |
 | AITER | [`v0.1.30`](https://github.com/ROCm/aiter/commit/77ba72b7061a3c76c4f726a50e8edfd2fe2a80e7), the latest release and tip of the `release/v0.1.30` line |
 | Flash Attention | [`aae6770da7df`](https://github.com/ROCm/flash-attention/commit/aae6770da7dfd2bafd57d2d0ee3d1428b62f4334), the tip of ROCm's `tridao` branch using the Triton AMD backend, not the CK-only release tags |
-| vLLM | Exact [`v0.34.0` source](https://github.com/vllm-project/vllm/commit/62d4bc3c7e33b1b6c906e233e6af2d3506c482ca), packaged as `0.34.0+rocm102.gfx1201` |
+| vLLM | [`64aad2be3a61`](https://github.com/andysalerno/vllm/commit/64aad2be3a6109aea1a5c716f25407ccc125fb1e) on `andysalerno/vllm` branch `inkling2-rdna4`, packaged as `0.35.0.dev0+g64aad2be3a61.rocm102.gfx1201` (see [Inkling 2 Mini](#inkling-2-mini)) |
 | Chat UI | Latest `ghcr.io/huggingface/chat-ui-db` image, pinned by digest `sha256:3cb93a2a3f53aacf0927f4bfd3114a2eccfefb8e417a6b042f755b42253d2c30` |
 
 ### Updating the fullbuild pins
@@ -104,7 +105,8 @@ The versions in `env/env.fullbuild` form two different kinds of constraints:
   preserve their own exact pins and paired-package constraints rather than
   overriding them independently.
 - **Release and unrelated UI:** Keep `VLLM_REF` and `VLLM_VERSION` aligned
-  with the same release. Chat UI is a separate service and can be updated
+  with the same release (or, for a development commit, the version its tree
+  declares). Chat UI is a separate service and can be updated
   independently after checking its image and configuration.
 
 Pip constraints retain the pinned PyTorch/Triton stack throughout the build and
@@ -133,19 +135,21 @@ libraries, so AITER's runtime JIT failed. The runtime
 puts the base image's complete `/opt/rocm` toolchain first on `PATH`; it uses
 the same clang and HIP versions, and a build-time HIP compile checks it.
 
-`VLLM_REF` selects the source; `VLLM_VERSION` sets the package version and local
-image tag. Keep them aligned when upgrading releases. The historical
+`VLLM_REPO` and `VLLM_REF` select the source; `VLLM_VERSION` sets the package
+version and `VLLM_IMAGE_TAG` the local image tag. Keep them aligned when
+upgrading releases. The historical
 configurations under `archive/` are not updated.
 
 Runtime settings are in `compose.yaml`, including the model, vLLM command-line
 arguments, GPU count, ports, and mounted caches. The default model is
-`Qwen/Qwen3.8-27B-FP8` with tensor parallelism set to two GPUs, FP8 KV cache,
-AITER unified attention, and three-token MTP speculative decoding.
+`thinkingmachines/Inkling-2-Mini`; see [Inkling 2 Mini](#inkling-2-mini).
 
 The runtime environment is split between:
 
 - `env/2xr9700.vllm.common` for the two-GPU ROCm configuration
-- `env/aiter-unified-attention.env` for AITER unified attention
+- `env/aiter-unified-attention.env` for AITER unified attention (used by
+  models served through vLLM's attention backends; Inkling 2 brings its own
+  kernels and does not use it)
 
 Edit these files and `compose.yaml` to match your hardware and model before
 building or starting the services.
@@ -158,6 +162,46 @@ just clear-vllm-caches
 ```
 
 The Hugging Face model cache is intentionally preserved.
+
+## Inkling 2 Mini
+
+vLLM releases run Inkling 2 Mini on NVIDIA only. The image builds vLLM from
+[`andysalerno/vllm` branch `inkling2-rdna4`](https://github.com/andysalerno/vllm/tree/inkling2-rdna4):
+vLLM main of 2026-11-25 with the open ROCm Inkling 2 port
+([vllm-project/vllm#67685](https://github.com/vllm-project/vllm/pull/67685),
+written for MI300/MI355), extended to RDNA4, the looped layers of Inkling 2 Mini,
+its NVFP4 experts, and its bundled DSpark draft. The changes are Python and
+Triton only. It serves Thinking Machines' checkpoint as published (NVFP4 and
+MXFP8 experts); the expert GEMMs decode those weights exactly and keep the
+activations in bf16.
+
+The service runs tensor parallelism over both GPUs with a 589,824-token
+context and DSpark speculative decoding with three draft tokens.
+
+| Measurement (2x R9700, TP=2) | Result |
+|---|---|
+| Wikitext-2 perplexity (32x1024 windows) | 7.440 (top-1 agreement 0.976), vs 7.437 for a Hugging Face bf16 reference |
+| Needle retrieval | passes at 553,873 tokens (30% and 80% depth) |
+| Prefill | ~3,500 tok/s at 64K, ~3,000 tok/s at 128K |
+| Decode, chat, 1 / 2 / 4 requests | ~87 / 142 / 210 tok/s (aggregate) |
+| Decode without DSpark, 1 / 2 / 4 requests | ~64 / 111 / 172 tok/s |
+
+Settings that matter on these GPUs:
+
+- `NCCL_CUMEM_ENABLE=1` and `NCCL_GRAPH_REGISTER=0` replace
+  `NCCL_P2P_DISABLE=1`. Legacy HIP IPC handles fail between the two R9700s,
+  which is why P2P was disabled; RCCL's cuMem path gives PCIe peer-to-peer
+  instead, and graph buffer registration must be off for CUDA graph capture.
+- `--max-num-batched-tokens 2048`: with 4096 the activation reserve leaves
+  room for only ~350K tokens of context with DSpark; 1024 fits ~713K. Without
+  DSpark (drop `--speculative-config`), 2048 fits ~785K and 1024 ~905K.
+- Three DSpark draft tokens beat the checkpoint's seven (~50 tok/s for one
+  request): later block positions are rarely accepted, and each verified token
+  reads more experts.
+
+Decode runs slower (~35 tok/s for one request) for the first 20-60 s of
+generation after the GPUs have been idle, then reaches full speed; benchmark
+after a warmup.
 
 ## Archived approach
 

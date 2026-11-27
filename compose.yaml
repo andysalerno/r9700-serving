@@ -28,7 +28,7 @@ x-amd-devices: &amd_devices
 services:
   vllm:
     <<: *amd_devices
-    image: localhost/vllm-fullbuild:${VLLM_VERSION:?set VLLM_VERSION in env/env.fullbuild}
+    image: localhost/vllm-fullbuild:${VLLM_IMAGE_TAG:?set VLLM_IMAGE_TAG in env/env.fullbuild}
     pull_policy: never
     build:
       context: .
@@ -42,6 +42,7 @@ services:
         TORCHVISION_VERSION: ${TORCHVISION_VERSION}
         TORCHAUDIO_VERSION: ${TORCHAUDIO_VERSION}
         TRITON_VERSION: ${TRITON_VERSION}
+        VLLM_REPO: ${VLLM_REPO}
         VLLM_REF: ${VLLM_REF}
         VLLM_VERSION: ${VLLM_VERSION}
         AITER_REF: ${AITER_REF}
@@ -62,31 +63,27 @@ services:
     volumes: *vllm_full_cache_volumes
     env_file:
       - env/2xr9700.vllm.common
-      - env/aiter-unified-attention.env
     environment:
-      - GPU_MAX_HW_QUEUES=1
-      - NCCL_P2P_DISABLE=1
-      # --chat-template /app/chat-templates/qwen36.jinja
+      # RCCL peer-to-peer over PCIe through cuMem memory; legacy HIP IPC fails
+      # on these GPUs. Graph buffer registration breaks CUDA graph capture.
+      - NCCL_CUMEM_ENABLE=1
+      - NCCL_GRAPH_REGISTER=0
+    # 2048-token prefill chunks keep the activation reserve small enough for a
+    # 589,824-token context with the DSpark draft; three draft tokens are the
+    # fastest on two R9700s (the checkpoint's block drafts up to seven).
     command: >
-      Qwen/Qwen3.8-27B-FP8
-      --tokenizer Qwen/Qwen3.8-27B
-      --served-model-name qwen3.8-27b
-      --limit-mm-per-prompt '{"image": 25, "audio": 0, "video": 0}'
-      --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3
-      --default-chat-template-kwargs '{"preserve_thinking": true, "reasoning_effort": "low"}'
-      --max-model-len 128000
+      thinkingmachines/Inkling-2-Mini
+      --served-model-name inkling-2-mini
+      --enable-auto-tool-choice --tool-call-parser inkling --reasoning-parser inkling
+      --max-model-len 589824
+      --max-num-batched-tokens 2048
+      --max-num-seqs 4
       --enable-prefix-caching
       --enable-prompt-tokens-details
-      --override-generation-config '{"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0}'
-      --gpu-memory-utilization 0.93
       --host 0.0.0.0
       --port 8000
-      --dtype auto
-      --max-num-seqs 4
-      --kv-cache-dtype fp8
       -tp 2
-      --attention-backend ROCM_AITER_UNIFIED_ATTN
-      --speculative-config '{"method": "mtp", "num_speculative_tokens": 3, "attention_backend": "ROCM_AITER_UNIFIED_ATTN"}'
+      --speculative-config '{"method": "dspark", "num_speculative_tokens": 3, "draft_sample_method": "probabilistic"}'
 
   ##########
   # tools and dashboards
