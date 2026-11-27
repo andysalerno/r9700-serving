@@ -62,7 +62,7 @@ The dependency pins were reviewed on 2026-11-22:
 | Triton | AMD's `3.9.0+git0a6e13e6.rocm10.2.0`, explicitly pinned to the build required by PyTorch |
 | AITER | [`v0.1.30`](https://github.com/ROCm/aiter/commit/77ba72b7061a3c76c4f726a50e8edfd2fe2a80e7), the latest release and tip of the `release/v0.1.30` line |
 | Flash Attention | [`aae6770da7df`](https://github.com/ROCm/flash-attention/commit/aae6770da7dfd2bafd57d2d0ee3d1428b62f4334), the tip of ROCm's `tridao` branch using the Triton AMD backend, not the CK-only release tags |
-| vLLM | [`bb6ea4e1a55c`](https://github.com/andysalerno/vllm/commit/bb6ea4e1a55cdbc5acbab59ed0051d672980b4a6) on `andysalerno/vllm` branch `inkling2-rdna4`, packaged as `0.35.0.dev0+gbb6ea4e1a55c.rocm102.gfx1201` (see [Inkling 2 Mini](#inkling-2-mini)) |
+| vLLM | [`5ab585c3c5b8`](https://github.com/andysalerno/vllm/commit/5ab585c3c5b8b9723f80d9f83c04e223262dd4a8) on `andysalerno/vllm` branch `inkling2-rdna4`, packaged as `0.35.0.dev0+g5ab585c3c5b8.rocm102.gfx1201` (see [Inkling 2 Mini](#inkling-2-mini)) |
 | Chat UI | Latest `ghcr.io/huggingface/chat-ui-db` image, pinned by digest `sha256:3cb93a2a3f53aacf0927f4bfd3114a2eccfefb8e417a6b042f755b42253d2c30` |
 
 ### Updating the fullbuild pins
@@ -211,6 +211,11 @@ Settings that matter on these GPUs:
 - `cpuset: "0-5,12-17"` keeps vLLM on the Ryzen 9 9900X3D's V-cache CCD of
   this host. Unpinned, decode at four requests drops to ~160 tok/s; adjust or
   remove it on other CPUs.
+
+Images are encoded at native resolution, as Thinking Machines' processor
+does: one context token per 40x40-pixel cell, so a 4096x4096 image takes
+10,609 tokens. The model card asks for each dimension between 40 and 4096
+pixels; images up to that many tokens are accepted, larger ones are rejected.
 
 Decode runs slower (~35 tok/s for one request) for the first 20-60 s of
 generation after the GPUs have been idle, then reaches full speed; benchmark
