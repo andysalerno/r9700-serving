@@ -79,6 +79,7 @@ services:
       thinkingmachines/Inkling-2-Mini
       --served-model-name inkling-2-mini
       --enable-auto-tool-choice --tool-call-parser inkling --reasoning-parser inkling
+      --default-chat-template-kwargs '{"reasoning_effort": "medium"}'
       --max-model-len 589824
       --max-num-batched-tokens 2048
       --max-num-seqs 4
