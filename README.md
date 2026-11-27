@@ -1,5 +1,30 @@
 # vLLM on Radeon AI PRO R9700
 
+> [!NOTE]
+> **Inkling 2 Mini:** the
+> [`models/inkling-2-mini-vllm`](https://github.com/andysalerno/r9700-serving/tree/models/inkling-2-mini-vllm)
+> branch serves [thinkingmachines/Inkling-2-Mini](https://huggingface.co/thinkingmachines/Inkling-2-Mini)
+> (Thinking Machines' original NVFP4/MXFP8 weights) on two R9700s. vLLM
+> releases do not run this model on AMD GPUs yet, so that branch builds vLLM from
+> [`andysalerno/vllm` `inkling2-rdna4`](https://github.com/andysalerno/vllm/tree/inkling2-rdna4).
+> To use it:
+>
+> ```sh
+> git switch models/inkling-2-mini-vllm
+> just up
+> ```
+>
+> Measured on 2x R9700 (tensor parallel, 589,824-token context, DSpark
+> speculative decoding with three draft tokens):
+>
+> | Metric | Result |
+> |---|---|
+> | Decode, 1 / 2 / 4 concurrent requests | ~87 / 142 / 210 tok/s (aggregate) |
+> | Prefill at 64K / 128K tokens | ~3,200-3,500 / ~3,000 tok/s |
+> | Wikitext-2 perplexity | 7.440 (Hugging Face bf16 reference: 7.437) |
+>
+> See that branch's README for its settings and caveats.
+
 Build and run vLLM from source for AMD Radeon AI PRO R9700 GPUs on ROCm 10. The
 default configuration targets two R9700s (`gfx1201`) and serves a model through
 vLLM's OpenAI-compatible API, with Hugging Face Chat UI as a frontend.
