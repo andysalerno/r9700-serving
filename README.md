@@ -62,7 +62,7 @@ The dependency pins were reviewed on 2026-11-22:
 | Triton | AMD's `3.9.0+git0a6e13e6.rocm10.2.0`, explicitly pinned to the build required by PyTorch |
 | AITER | [`v0.1.30`](https://github.com/ROCm/aiter/commit/77ba72b7061a3c76c4f726a50e8edfd2fe2a80e7), the latest release and tip of the `release/v0.1.30` line |
 | Flash Attention | [`aae6770da7df`](https://github.com/ROCm/flash-attention/commit/aae6770da7dfd2bafd57d2d0ee3d1428b62f4334), the tip of ROCm's `tridao` branch using the Triton AMD backend, not the CK-only release tags |
-| vLLM | [`1e4216ad6649`](https://github.com/andysalerno/vllm/commit/1e4216ad664910263e958791b39ba917cc8b0526) on `andysalerno/vllm` branch `inkling2-rdna4`, packaged as `0.35.0.dev0+g1e4216ad6649.rocm102.gfx1201` (see [Inkling 2 Mini](#inkling-2-mini)) |
+| vLLM | [`9c63eba43c9f`](https://github.com/andysalerno/vllm/commit/9c63eba43c9f368ab6b85aec7d4041dfbbcf454e) on `andysalerno/vllm` branch `inkling2-rdna4`, packaged as `0.35.0.dev0+g9c63eba43c9f.rocm102.gfx1201` (see [Inkling 2 Mini](#inkling-2-mini)) |
 | Chat UI | Latest `ghcr.io/huggingface/chat-ui-db` image, pinned by digest `sha256:3cb93a2a3f53aacf0927f4bfd3114a2eccfefb8e417a6b042f755b42253d2c30` |
 
 ### Updating the fullbuild pins
@@ -203,11 +203,13 @@ Settings that matter on these GPUs:
 - The short-conv state (six wide cache groups) backs only each prefill
   chunk's tail, since the convolutions read just the positions before a step;
   as a plain sliding window it reserved a quarter of the KV pool for in-flight
-  chunks. Prefix-cache hits still cover a chat's earlier turns (the end of the
-  previous prompt), but separate conversations that share only the start of a
-  prompt (a long system prompt or document) don't reuse each other's prefill:
-  vLLM keeps this state only at prompt ends and shared-prefix junctions, and
-  a junction usually falls inside a chunk, where it isn't backed.
+  chunks. Prefix-cache hits cover a chat's earlier turns (the end of the
+  previous prompt). Conversations that share only the start of a prompt (a long
+  system prompt or document) reuse it from the third one on: like plain
+  sliding window, vLLM keeps this state only at prompt ends and shared-prefix
+  junctions, and the scheduler ends a prefill chunk at a junction so its
+  state is backed (a 54K-token shared system prompt: 20 s to first token for
+  the first two conversations, ~4 s after).
 - Three DSpark draft tokens beat the checkpoint's seven (~50 tok/s for one
   request): later block positions are rarely accepted, and each verified token
   reads more experts.
