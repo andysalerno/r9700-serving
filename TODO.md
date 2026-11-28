@@ -19,3 +19,15 @@ start) and the hit-vs-no-cache quality have been verified.
 - [ ] **Perplexity on the current build.** Rerun the Wikitext-2 perplexity
   check (last measured at 7.438, vs 7.437 for the Hugging Face bf16
   reference) after the conv-state cache changes. Needs the service stopped.
+
+Performance:
+
+- [ ] **Decode alternates between two speeds.** The same greedy request
+  (same text, same DSpark acceptance) takes 23.6 ms per step in one mode and
+  37.5 ms in the other (87 vs 55 tok/s for one chat request). The service
+  stayed in the slow mode for hours, and was slow for ~25 s after a restart
+  before switching. Clocks (sclk ~3.3 GHz, mclk 1258 MHz, fclk 2016 MHz),
+  CPU use and RCCL all-reduce latency (20 us) are the same in both modes;
+  GPU1's PCIe link sits at 16 GT/s in both. Next: try
+  `power_dpm_force_performance_level=high` or the COMPUTE power profile on
+  both GPUs (needs root), then profile a slow step against a fast one.
