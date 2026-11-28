@@ -203,8 +203,11 @@ Settings that matter on these GPUs:
 - The short-conv state (six wide cache groups) backs only each prefill
   chunk's tail, since the convolutions read just the positions before a step;
   as a plain sliding window it reserved a quarter of the KV pool for in-flight
-  chunks. A prefix-cache hit inside an earlier prompt (not at its end) falls
-  back to the nearest chunk boundary.
+  chunks. Prefix-cache hits still cover a chat's earlier turns (the end of the
+  previous prompt), but separate conversations that share only the start of a
+  prompt (a long system prompt or document) don't reuse each other's prefill:
+  vLLM keeps this state only at prompt ends and shared-prefix junctions, and
+  a junction usually falls inside a chunk, where it isn't backed.
 - Three DSpark draft tokens beat the checkpoint's seven (~50 tok/s for one
   request): later block positions are rarely accepted, and each verified token
   reads more experts.
