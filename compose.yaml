@@ -76,15 +76,16 @@ services:
       # by default under /tmp in the container; keep it on the mounted host
       # cache so compiled kernels survive restarts.
       - TORCHINDUCTOR_CACHE_DIR=/root/.cache/torchinductor
-    # 2048-token prefill chunks keep the activation reserve small enough for a
-    # 589,824-token context with the DSpark draft; three draft tokens are the
-    # fastest on two R9700s (the checkpoint's block drafts up to seven).
+    # A 786,432-token context fits with the DSpark draft at 2048-token prefill
+    # chunks (1024 fits more but prefills 7-10% slower at 8-32K); three draft
+    # tokens are the fastest on two R9700s (the checkpoint's block drafts up to
+    # seven).
     command: >
       thinkingmachines/Inkling-2-Mini
       --served-model-name inkling-2-mini
       --enable-auto-tool-choice --tool-call-parser inkling --reasoning-parser inkling
       --default-chat-template-kwargs '{"reasoning_effort": "medium"}'
-      --max-model-len 589824
+      --max-model-len 786432
       --max-num-batched-tokens 2048
       --max-num-seqs 4
       --enable-prefix-caching

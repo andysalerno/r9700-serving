@@ -62,7 +62,7 @@ The dependency pins were reviewed on 2026-11-22:
 | Triton | AMD's `3.9.0+git0a6e13e6.rocm10.2.0`, explicitly pinned to the build required by PyTorch |
 | AITER | [`v0.1.30`](https://github.com/ROCm/aiter/commit/77ba72b7061a3c76c4f726a50e8edfd2fe2a80e7), the latest release and tip of the `release/v0.1.30` line |
 | Flash Attention | [`aae6770da7df`](https://github.com/ROCm/flash-attention/commit/aae6770da7dfd2bafd57d2d0ee3d1428b62f4334), the tip of ROCm's `tridao` branch using the Triton AMD backend, not the CK-only release tags |
-| vLLM | [`5ab585c3c5b8`](https://github.com/andysalerno/vllm/commit/5ab585c3c5b8b9723f80d9f83c04e223262dd4a8) on `andysalerno/vllm` branch `inkling2-rdna4`, packaged as `0.35.0.dev0+g5ab585c3c5b8.rocm102.gfx1201` (see [Inkling 2 Mini](#inkling-2-mini)) |
+| vLLM | [`e2dce79a38d4`](https://github.com/andysalerno/vllm/commit/e2dce79a38d4795e6d72ee93087bf9599704b495) on `andysalerno/vllm` branch `inkling2-rdna4`, packaged as `0.35.0.dev0+ge2dce79a38d4.rocm102.gfx1201` (see [Inkling 2 Mini](#inkling-2-mini)) |
 | Chat UI | Latest `ghcr.io/huggingface/chat-ui-db` image, pinned by digest `sha256:3cb93a2a3f53aacf0927f4bfd3114a2eccfefb8e417a6b042f755b42253d2c30` |
 
 ### Updating the fullbuild pins
@@ -175,13 +175,13 @@ Triton only. It serves Thinking Machines' checkpoint as published (NVFP4 and
 MXFP8 experts); the expert GEMMs decode those weights exactly and keep the
 activations in bf16.
 
-The service runs tensor parallelism over both GPUs with a 589,824-token
+The service runs tensor parallelism over both GPUs with a 786,432-token
 context and DSpark speculative decoding with three draft tokens.
 
 | Measurement (2x R9700, TP=2) | Result |
 |---|---|
 | Wikitext-2 perplexity (32x1024 windows) | 7.438 (top-1 agreement 0.976), vs 7.437 for a Hugging Face bf16 reference |
-| Needle retrieval | passes at 553,873 tokens (30% and 80% depth) |
+| Needle retrieval | passes at 553,873 tokens (30% and 80% depth) and 738,495 tokens (50%) |
 | Prefill | ~3,500 tok/s at 64K, ~3,000 tok/s at 128K |
 | Decode, chat, 1 / 2 / 4 requests | ~87 / 142 / 210 tok/s (aggregate) |
 | Decode without DSpark, 1 / 2 / 4 requests | ~64 / 111 / 172 tok/s |
@@ -197,9 +197,14 @@ Settings that matter on these GPUs:
   `NCCL_P2P_DISABLE=1`. Legacy HIP IPC handles fail between the two R9700s,
   which is why P2P was disabled; RCCL's cuMem path gives PCIe peer-to-peer
   instead, and graph buffer registration must be off for CUDA graph capture.
-- `--max-num-batched-tokens 2048`: with 4096 the activation reserve leaves
-  room for only ~350K tokens of context with DSpark; 1024 fits ~713K. Without
-  DSpark (drop `--speculative-config`), 2048 fits ~785K and 1024 ~905K.
+- `--max-num-batched-tokens 2048` with DSpark leaves a 793K-token KV cache
+  (786,432-token context). 1024 frees more for the KV cache but prefills 7-10%
+  slower at 8-32K tokens.
+- The short-conv state (six wide cache groups) backs only each prefill
+  chunk's tail, since the convolutions read just the positions before a step;
+  as a plain sliding window it reserved a quarter of the KV pool for in-flight
+  chunks. A prefix-cache hit inside an earlier prompt (not at its end) falls
+  back to the nearest chunk boundary.
 - Three DSpark draft tokens beat the checkpoint's seven (~50 tok/s for one
   request): later block positions are rarely accepted, and each verified token
   reads more experts.
